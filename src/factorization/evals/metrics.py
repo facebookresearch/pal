@@ -1,5 +1,5 @@
 """
-Utils functions
+Evaluation metric
 
 License
 -------

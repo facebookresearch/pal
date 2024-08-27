@@ -1,5 +1,5 @@
 """
-Utils functions
+Generate synthetic data to study LLM behaviors in controlled settings.
 
 License
 -------
