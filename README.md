@@ -1,11 +1,22 @@
-# Experiments for active self-supervised learning
+## Code base around associative memory research stream
 
-This repository contains the code to reproduce the experiments in the paper:
- "Active Self-Supervised Learning: A Few Low-Cost Relationships Are All You Need" by Vivien Cabannes, L\'eon Bottou, Yann LeCun and Randall Balestriero (ICCV, 2023).
+#### Requirements
+The code back-end is made with:
+```text
+numpy
+torch
+```
+The visualization are made with:
+```text
+matplotlib
+networkx
+```
 
-## Installation
-The code is written in Python 3.6. It depends on the library https://github.com/facebookresearch/rates.
+#### Research papers
+- Vivien Cabannes, Elvis Dohmatob, Alberto Bietti. *Scaling laws for associative memories*, in International Conference on Learning Representations (ICLR), 2024. The codebase is in the folder `scaling_laws`.
 
-License
--------
-Those notebooks are MIT licensed, as precised in the LICENSE file.
+- Vivien Cabannes, Berfin Simsek, Alberto Bietti. *Learning Associative Memories with Gradient Descent* in International Conference on Machine Learning (ICML), 2024. The codebase is in the folder `optimization`.
+
+ICASSP 2025. Codebase in `pruning`.
+
+ICLR 2025. Codebase in `factorization`.

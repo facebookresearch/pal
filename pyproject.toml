@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llmdismantling"
+version = "0.0.0"
+authors = [
+  { name="Vivien Cabannes", email="vivien.cabannes@gmail.com" },
+]
+description = "Get started with LLMs on math tasks"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    # essential
+    "numpy",
+    "torch",
+
+    # argument parsing
+    "fire",
+
+    # transformer libraries
+    "sentencepiece",
+    "tiktoken",
+    "transformers",
+
+    # visualization
+    "ipykernel",
+    "ipywidgets",
+    "matplotlib",
+
+    # formatting
+    "black",
+    "flake8",
+    "flake8-pyproject",
+    "isort",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/VivienCabannes/LLMs"
+"Bug Tracker" = "https://github.com/VivienCabannes/LLMs/issues"
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"
+
+[tool.flake8]
+max-line-length = 120
+ignore = [
+    "E203",  # whitespace before ':'
+    "E722",  # do not use bare 'except'
+    "W503",  # line break before binary operator
+]
+per-file-ignores = [
+    '__init__.py:F401',
+]
