@@ -6,11 +6,11 @@
 __pycache__
 
 # Saving directory
-data
-figures
-models
-results
-savings
+*data/
+*figures/
+*models/
+*results/
+*savings/
 
 # Saved files
 *.npy

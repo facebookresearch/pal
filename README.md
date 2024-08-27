@@ -30,10 +30,10 @@ Empirical study of memorization capacity of MLPs and their abilities to leverage
 ## Organization
 The main resuable code is in the `src` folder.
 The code for our different research streams is in the `projects` folder.
-Other folders include:
+Other folders may include:
 - `data`: contains data used in the experiments.
-- `launchers`: contains bash scripts to launch experiments.
 - `models`: saves models' weights.
+- `launchers`: contains bash scripts to launch experiments.
 - `notebooks`: used for exploration and visualization.
 - `scripts`: contains python scripts to run experiments.
 - `tests`: contains tests for the code.
