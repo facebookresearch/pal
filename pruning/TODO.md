@@ -1,3 +1,6 @@
+If we go for a small submission like ICASSP, we should better wrap something up relatively fast.
+
+
 ## Experience on a two layer transformers
 
 *TODO:*
