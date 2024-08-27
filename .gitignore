@@ -1,12 +1,18 @@
+
+# Cache and configuration files
 .DS_Store
-.egg-info
+*.egg-info
 .vscode
 __pycache__
 
+# Saving directory
 data
 figures
+models
 results
+savings
 
+# Saved files
 *.npy
 *.pdf
 *.png

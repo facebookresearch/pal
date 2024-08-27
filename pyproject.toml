@@ -8,7 +8,7 @@ version = "0.0.0"
 authors = [
   { name="Vivien Cabannes", email="vivien.cabannes@gmail.com" },
 ]
-description = "Get started with LLMs on math tasks"
+description = "Experiments regarding LLM components"
 readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
