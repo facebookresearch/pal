@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "llmdismantling"
+name = "pal"
 version = "0.0.0"
 authors = [
   { name="Vivien Cabannes", email="vivien.cabannes@gmail.com" },
@@ -33,6 +33,7 @@ dependencies = [
     "ipykernel",
     "ipywidgets",
     "matplotlib",
+    "networkx",
 
     # formatting
     "black",
@@ -42,8 +43,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/VivienCabannes/LLMs"
-"Bug Tracker" = "https://github.com/VivienCabannes/LLMs/issues"
+"Homepage" = "https://github.com/facebookresearch/pal"
+"Bug Tracker" = "https://github.com/facebookresearch/pal/issues"
 
 [tool.black]
 line-length = 120

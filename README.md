@@ -1,4 +1,6 @@
-## Code base around associative memory research stream
+## PAL: Predictive Analysis & Laws for Neural Networks
+
+Dismantling large language models parts to understand them better, with the hope to build better models.
 
 #### Requirements
 The code back-end is made with:
@@ -15,8 +17,10 @@ networkx
 #### Research papers
 - Vivien Cabannes, Elvis Dohmatob, Alberto Bietti. *Scaling laws for associative memories*, in International Conference on Learning Representations (ICLR), 2024. The codebase is in the folder `scaling_laws`.
 
-- Vivien Cabannes, Berfin Simsek, Alberto Bietti. *Learning Associative Memories with Gradient Descent* in International Conference on Machine Learning (ICML), 2024. The codebase is in the folder `optimization`.
+- Vivien Cabannes, Berfin Simsek, Alberto Bietti. *Learning Associative Memories with Gradient Descent* in International Conference on Machine Learning (ICML), 2024. The codebase is in the folder `graident_descent`.
 
-ICASSP 2025. Codebase in `pruning`.
+- In preparation. Codebase in `pruning`.
+Show that learning appear by pruning circuits.
 
-ICLR 2025. Codebase in `factorization`.
+- In preparation. Codebase in `factorization`.
+Empirical study of memorization capacity of MLPs and their abilities to leverage hidden factorization.
