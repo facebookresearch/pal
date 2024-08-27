@@ -1,14 +1,13 @@
 
-# Cache and configuration files
+# Build, cache and configuration files
 .DS_Store
 *.egg-info
 .vscode
 __pycache__
+dist
 
 # Saving directory
-*data/
 *figures/
-*models/
 *results/
 *savings/
 

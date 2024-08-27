@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pal"
+name = "metapal"
 version = "0.0.0"
 authors = [
   { name="Vivien Cabannes", email="vivien.cabannes@gmail.com" },
