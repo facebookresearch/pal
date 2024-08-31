@@ -3,3 +3,4 @@ networkx
 numpy
 requests
 torch
+tqdm
