@@ -1,6 +1,7 @@
 matplotlib
 networkx
 numpy
+scikit-learn
 requests
 torch
 tqdm
