@@ -18,6 +18,7 @@ classifiers = [
 ]
 dependencies = [
     # essential
+    "scikit-learn",
     "numpy",
     "torch",
 
