@@ -1,5 +1,11 @@
 If we go for a small submission like ICASSP, we should better wrap something up relatively fast.
 
+## Visualize memorizaton vs. algorithm
+- In factorization.ipynb: 
+    - visualize attention matrices along training with corresponding sequence
+    - visuzalize "pruning" graph along iterations
+    - visualize vector in $R^d$ (e.g., $d=32$) after attention (attn @ value @ x)
+    - do the same after first layer and second layer of MLP
 
 ## Experience on a two layer transformers
 
