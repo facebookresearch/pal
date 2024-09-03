@@ -2,6 +2,7 @@ matplotlib
 networkx
 numpy
 scikit-learn
+seaborn
 requests
 torch
 tqdm
