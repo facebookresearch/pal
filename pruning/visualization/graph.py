@@ -43,16 +43,16 @@ def build_1L_graph(N):
     G = nx.Graph()
 
     G.add_nodes_from([rf"$x_{{{i}}}$" for i in range(N)])
-    G.add_node(r"$q$")
+    G.add_node(r"$z$")
 
     # Add edges between nodes in different sets
     for i in range(N):
-        G.add_edge(rf"$x_{{{i}}}$", r"$q$")
+        G.add_edge(rf"$x_{{{i}}}$", r"$z$")
 
     pos = {}
     for i in range(N):
         pos[rf"$x_{{{i}}}$"] = (i, 0)
-    pos[r"$q$"] = (N / 2, -1)
+    pos[r"$z$"] = (N / 2, -1)
 
     return G, pos
 
@@ -72,16 +72,16 @@ def build_1L_graph_tokens(N, tokens):
     # G.add_nodes_from([f"{i}" for i in tokens],)
     for i, j in enumerate(tokens):
         G.add_node(rf"$y_{{{i}}}$", label=j)
-    G.add_node(r"$q$")
+    G.add_node(r"$z$")
 
     # Add edges between nodes in different sets
     for i in range(N):
-        G.add_edge(rf"$y_{{{i}}}$", r"$q$")
+        G.add_edge(rf"$y_{{{i}}}$", r"$z$")
 
     pos = {}
     for i in range(N):
         pos[rf"$y_{{{i}}}$"] = (i, 0)
         pos[rf"$x_{{{i}}}$"] = (i, 0.1)
-    pos[r"$q$"] = (N / 2, -1)
+    pos[r"$z$"] = (N / 2, -1)
 
     return G, pos
