@@ -2,6 +2,13 @@
 
 Dismantling large language models parts to understand them better, with the hope to build better models.
 
+### Installation
+```bash
+git clone https://github.com/facebookresearch/pal.git
+cd pal
+pip install -e .
+```
+
 #### Requirements
 The code back-end is made with:
 ```text
@@ -12,6 +19,12 @@ The visualization are made with:
 ```text
 matplotlib
 networkx
+```
+
+The animated visualizations require:
+```text
+moviepy
+ffmpeg
 ```
 
 #### Research papers
