@@ -2,6 +2,13 @@
 
 Dismantling large language models parts to understand them better, with the hope to build better models.
 
+### Install
+```bash
+git clone https://github.com/facebookresearch/pal.git
+cd pal
+pip install -e .
+```
+
 #### Requirements
 The code back-end is made with:
 ```text
@@ -28,7 +35,7 @@ Show that learning appear by pruning circuits.
 Empirical study of memorization capacity of MLPs and their abilities to leverage hidden factorization.
 
 ## Organization
-The main resuable code is in the `src` folder.
+The main reusable code is in the `src` folder.
 The code for our different research streams is in the `projects` folder.
 Other folders may include:
 - `data`: contains data used in the experiments.
