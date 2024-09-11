@@ -1,4 +1,5 @@
 matplotlib
+moviepy
 networkx
 numpy
 scikit-learn
