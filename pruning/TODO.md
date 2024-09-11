@@ -1,4 +1,18 @@
-If we go for a small submission like ICASSP, we should better wrap something up relatively fast.
+
+## TODO visualization
+
+- [ ] Find a config where the model succeeds with $p=3$.
+- [ ] Find a config where the model fails (should be the usual behaviors), and when the model collapse.
+- [ ] Understand the dynamics
+- [ ] Understand the loss spikes
+- [ ] Run experiments that show to pertub the behaviors of the training and which confirm our understanding (ways to remove the loss spikes, SGD, ...).
+
+#### Vivien's TODO
+- [ ] Check for bugs in the MLP level lines.
+- [ ] Write dataloader with mini batch.
+- [ ] Write visualization when $p=3$ with triangles for the sequence associated to $y = 2$.
+- [ ] Annotate the videos precisely (e.g., iteration 100: merging of seq that are prefix invariant, iteration 1000: loss spikes, ...)
+
 
 ## Visualize memorizaton vs. algorithm
 - In factorization.ipynb: 
