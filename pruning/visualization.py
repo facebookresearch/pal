@@ -13,6 +13,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from matplotlib import rc
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from tqdm import tqdm
 
 from factorization.models.softmax_model import Model, RMSNorm
@@ -22,7 +24,6 @@ sys.path.append(str(Path("..").resolve()))
 
 SAVE_DIR = Path(".").resolve() / "results"
 DEVICE = torch.cuda.current_device() if torch.cuda.is_available() else torch.device("cpu")
-SEED = None
 SEED = 200
 if SEED:
     RNG = np.random.default_rng(SEED)
@@ -72,7 +73,6 @@ emb_dim = 2
 # ffn_dim = 4 * emb_dim
 ffn_dim = 10
 vocab_size = 2
-torch.manual_seed(20)
 
 model = Model(emb_dim=emb_dim, vocab_size=vocab_size, length=length, ffn_dim=ffn_dim)
 print(f"Number of parameters: {sum(p.numel() for p in model.parameters())}")
@@ -94,6 +94,7 @@ Y_test = torch.from_numpy(test_targets).to(dtype=torch.long, device=DEVICE)
 lambda_l1 = 1e-4
 lr = 1e-2  # emb_dim == 2 & ffn_dim == 32 & reg_l1 & model_seed 20
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
 
 losses = torch.zeros(niter)
 test_losses = torch.zeros(niter)
@@ -133,7 +134,6 @@ pickle.dump(losses, open(SAVE_DIR / "losses.pkl", "wb"))
 pickle.dump(test_losses, open(SAVE_DIR / "test_losses.pkl", "wb"))
 pickle.dump(accs, open(SAVE_DIR / "accs.pkl", "wb"))
 pickle.dump(test_accs, open(SAVE_DIR / "test_accs.pkl", "wb"))
-
 
 # %% Loading results
 
@@ -207,7 +207,7 @@ grid_mlp = torch.stack([X_out, Y_out], dim=-1).to(DEVICE).view(-1, 2)
 WIDTH = 15
 HEIGHT = 20
 
-fig, axes = plt.subplots(4, 3, figsize=(WIDTH, HEIGHT))
+fig, axes = plt.subplots(6, 3, figsize=(WIDTH, HEIGHT))
 
 text_fontsize = 8
 title_fontsize = 12
@@ -217,7 +217,7 @@ neg_marker = "s"
 
 
 def update(frame):
-    for i in range(4):
+    for i in range(6):
         for j in range(3):
             axes[i, j].clear()
 
@@ -234,6 +234,24 @@ def update(frame):
     with torch.no_grad():
         pos_seq_emb = model.softmax(norm(model.token_emb(pos_inputs) + model.pos_emb.weight))
         neg_seq_emb = model.softmax(norm(model.token_emb(neg_inputs) + model.pos_emb.weight))
+        pos_seq_norm = norm(pos_seq_emb)
+        neg_seq_norm = norm(neg_seq_emb)
+        pos_seq_fc1 = model.mlp.fc1(pos_seq_norm)
+        neg_seq_fc1 = model.mlp.fc1(neg_seq_norm)
+        pos_seq_activation = model.mlp.activation(pos_seq_fc1)
+        neg_seq_activation = model.mlp.activation(neg_seq_fc1)
+        tsne = TSNE(n_components=2, perplexity=5)
+        pos_seq_fc1_tsne = tsne.fit_transform(pos_seq_fc1)
+        neg_seq_fc1_tsne = tsne.fit_transform(neg_seq_fc1)
+        pos_seq_activation_tsne = tsne.fit_transform(pos_seq_activation)
+        neg_seq_activation_tsne = tsne.fit_transform(neg_seq_activation)
+        pca = PCA(n_components=2)
+        pos_seq_fc1_pca = pca.fit_transform(pos_seq_fc1)
+        neg_seq_fc1_pca = pca.fit_transform(neg_seq_fc1)
+        pos_seq_activation_pca = pca.fit_transform(pos_seq_activation)
+        neg_seq_activation_pca = pca.fit_transform(neg_seq_activation)
+        pos_seq_fc2 = model.mlp.fc2(pos_seq_activation)
+        neg_seq_fc2 = model.mlp.fc2(neg_seq_activation)
         pos_seq_mlp = pos_seq_emb + model.mlp(norm(pos_seq_emb))
         neg_seq_mlp = neg_seq_emb + model.mlp(norm(neg_seq_emb))
         out_mlp = F.softmax(model.output(grid_mlp + model.mlp(norm(grid_mlp))), dim=-1)[..., 1].view(X_mlp.shape)
@@ -396,51 +414,195 @@ def update(frame):
         t.set_alpha(0.3)
     axes[1, 2].set_title("Sequence Embeddings", fontsize=title_fontsize)
 
-    axes[2, 0].contourf(X_mlp, Y_mlp, out_mlp, cmap="coolwarm", vmin=0, vmax=1)
     axes[2, 0].scatter(
-        pos_seq_emb[:, 0], pos_seq_emb[:, 1], c=np.arange(pos_seq_emb.shape[0]), marker=pos_marker, cmap="tab20b", s=100
+        pos_seq_norm[:, 0],
+        pos_seq_norm[:, 1],
+        c=np.arange(pos_seq_norm.shape[0]),
+        marker=pos_marker,
+        cmap="tab20b",
+        s=100,
     )
     axes[2, 0].scatter(
+        neg_seq_norm[:, 0],
+        neg_seq_norm[:, 1],
+        c=np.arange(neg_seq_norm.shape[0]),
+        marker=neg_marker,
+        cmap="tab20b",
+        s=100,
+    )
+    for i, (x, y) in enumerate(pos_seq_norm):
+        t = axes[2, 0].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t.set_alpha(0.3)
+    for i, (x, y) in enumerate(neg_seq_norm):
+        t = axes[2, 0].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t.set_alpha(0.3)
+    axes[2, 0].set_title("Normalized Attention Embeddings", fontsize=title_fontsize)
+
+    axes[2, 1].scatter(
+        neg_seq_fc1_tsne[:, 0],
+        neg_seq_fc1_tsne[:, 1],
+        c=np.arange(neg_seq_fc1_tsne.shape[0]),
+        marker=pos_marker,
+        cmap="tab20b",
+        s=100,
+    )
+    axes[2, 1].scatter(
+        neg_seq_fc1_tsne[:, 0],
+        neg_seq_fc1_tsne[:, 1],
+        c=np.arange(neg_seq_fc1_tsne.shape[0]),
+        marker=neg_marker,
+        cmap="tab20b",
+        s=100,
+    )
+    for i, (x, y) in enumerate(pos_seq_fc1_tsne):
+        t = axes[2, 1].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t.set_alpha(0.3)
+    for i, (x, y) in enumerate(neg_seq_fc1_tsne):
+        t = axes[2, 1].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t.set_alpha(0.3)
+    axes[2, 1].set_title("MLP First Layer (t-SNE)", fontsize=title_fontsize)
+
+    axes[2, 2].scatter(
+        neg_seq_activation_tsne[:, 0],
+        neg_seq_activation_tsne[:, 1],
+        c=np.arange(neg_seq_activation_tsne.shape[0]),
+        marker=pos_marker,
+        cmap="tab20b",
+        s=100,
+    )
+    axes[2, 2].scatter(
+        neg_seq_activation_tsne[:, 0],
+        neg_seq_activation_tsne[:, 1],
+        c=np.arange(neg_seq_activation_tsne.shape[0]),
+        marker=neg_marker,
+        cmap="tab20b",
+        s=100,
+    )
+    for i, (x, y) in enumerate(pos_seq_activation_tsne):
+        t = axes[2, 2].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t.set_alpha(0.3)
+    for i, (x, y) in enumerate(neg_seq_activation_tsne):
+        t = axes[2, 2].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t.set_alpha(0.3)
+    axes[2, 2].set_title("MLP Activation (t-SNE)", fontsize=title_fontsize)
+
+    axes[3, 0].scatter(
+        neg_seq_fc1_pca[:, 0],
+        neg_seq_fc1_pca[:, 1],
+        c=np.arange(neg_seq_fc1_pca.shape[0]),
+        marker=pos_marker,
+        cmap="tab20b",
+        s=100,
+    )
+    axes[3, 0].scatter(
+        neg_seq_fc1_pca[:, 0],
+        neg_seq_fc1_pca[:, 1],
+        c=np.arange(neg_seq_fc1_pca.shape[0]),
+        marker=neg_marker,
+        cmap="tab20b",
+        s=100,
+    )
+    for i, (x, y) in enumerate(pos_seq_fc1_pca):
+        t = axes[3, 0].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t.set_alpha(0.3)
+    for i, (x, y) in enumerate(neg_seq_fc1_pca):
+        t = axes[3, 0].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t.set_alpha(0.3)
+    axes[3, 0].set_title("MLP First Layer (PCA)", fontsize=title_fontsize)
+
+    axes[3, 1].scatter(
+        neg_seq_activation_pca[:, 0],
+        neg_seq_activation_pca[:, 1],
+        c=np.arange(neg_seq_activation_pca.shape[0]),
+        marker=pos_marker,
+        cmap="tab20b",
+        s=100,
+    )
+    axes[3, 1].scatter(
+        neg_seq_activation_pca[:, 0],
+        neg_seq_activation_pca[:, 1],
+        c=np.arange(neg_seq_activation_pca.shape[0]),
+        marker=neg_marker,
+        cmap="tab20b",
+        s=100,
+    )
+    for i, (x, y) in enumerate(pos_seq_activation_pca):
+        t = axes[3, 1].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t.set_alpha(0.3)
+    for i, (x, y) in enumerate(neg_seq_activation_pca):
+        t = axes[3, 1].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t.set_alpha(0.3)
+    axes[3, 1].set_title("MLP Activation (PCA)", fontsize=title_fontsize)
+
+    axes[3, 2].scatter(
+        pos_seq_fc2[:, 0],
+        pos_seq_fc2[:, 1],
+        c=np.arange(pos_seq_fc2.shape[0]),
+        marker=pos_marker,
+        cmap="tab20b",
+        s=100,
+    )
+    axes[3, 2].scatter(
+        neg_seq_fc2[:, 0],
+        neg_seq_fc2[:, 1],
+        c=np.arange(neg_seq_fc2.shape[0]),
+        marker=neg_marker,
+        cmap="tab20b",
+        s=100,
+    )
+    for i, (x, y) in enumerate(pos_seq_fc2):
+        t = axes[3, 2].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t.set_alpha(0.3)
+    for i, (x, y) in enumerate(neg_seq_fc2):
+        t = axes[3, 2].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t.set_alpha(0.3)
+    axes[3, 2].set_title("MLP Second Layer", fontsize=title_fontsize)
+
+    axes[4, 0].contourf(X_mlp, Y_mlp, out_mlp, cmap="coolwarm", vmin=0, vmax=1)
+    axes[4, 0].scatter(
+        pos_seq_emb[:, 0], pos_seq_emb[:, 1], c=np.arange(pos_seq_emb.shape[0]), marker=pos_marker, cmap="tab20b", s=100
+    )
+    axes[4, 0].scatter(
         neg_seq_emb[:, 0], neg_seq_emb[:, 1], c=np.arange(neg_seq_emb.shape[0]), marker=neg_marker, cmap="tab20b", s=100
     )
     for i, (x, y) in enumerate(pos_seq_emb):
-        t = axes[2, 0].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t = axes[4, 0].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
         t.set_alpha(0.3)
     for i, (x, y) in enumerate(neg_seq_emb):
-        t = axes[2, 0].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t = axes[4, 0].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
         t.set_alpha(0.3)
-    axes[2, 0].set_title("MLP level lines", fontsize=title_fontsize)
+    axes[4, 0].set_title("MLP level lines", fontsize=title_fontsize)
 
-    axes[2, 1].scatter(
+    axes[4, 1].scatter(
         pos_seq_mlp[:, 0], pos_seq_mlp[:, 1], c=np.arange(pos_seq_mlp.shape[0]), marker=pos_marker, cmap="tab20b", s=100
     )
-    axes[2, 1].scatter(
+    axes[4, 1].scatter(
         neg_seq_mlp[:, 0], neg_seq_mlp[:, 1], c=np.arange(neg_seq_mlp.shape[0]), marker=neg_marker, cmap="tab20b", s=100
     )
     for i, (x, y) in enumerate(pos_seq_mlp):
-        t = axes[2, 1].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t = axes[4, 1].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
         t.set_alpha(0.3)
     for i, (x, y) in enumerate(neg_seq_mlp):
-        t = axes[2, 1].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t = axes[4, 1].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
         t.set_alpha(0.3)
-    axes[2, 1].set_title("MLP transform", fontsize=title_fontsize)
+    axes[4, 1].set_title("MLP transform", fontsize=title_fontsize)
 
-    axes[2, 2].contourf(X_out, Y_out, out_out, cmap="coolwarm", vmin=0, vmax=1)
-    axes[2, 2].scatter(
+    axes[4, 2].contourf(X_out, Y_out, out_out, cmap="coolwarm", vmin=0, vmax=1)
+    axes[4, 2].scatter(
         pos_seq_mlp[:, 0], pos_seq_mlp[:, 1], c=np.arange(pos_seq_mlp.shape[0]), marker=pos_marker, cmap="tab20b", s=100
     )
-    axes[2, 2].scatter(
+    axes[4, 2].scatter(
         neg_seq_mlp[:, 0], neg_seq_mlp[:, 1], c=np.arange(neg_seq_mlp.shape[0]), marker=neg_marker, cmap="tab20b", s=100
     )
     for i, (x, y) in enumerate(pos_seq_mlp):
-        t = axes[2, 2].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t = axes[4, 2].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
         t.set_alpha(0.3)
     for i, (x, y) in enumerate(neg_seq_mlp):
-        t = axes[2, 2].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t = axes[4, 2].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
         t.set_alpha(0.3)
-    axes[2, 2].set_title("Output level lines", fontsize=title_fontsize)
+    axes[4, 2].set_title("Output level lines", fontsize=title_fontsize)
 
-    axes[3, 0].scatter(
+    axes[5, 0].scatter(
         pos_seq_prob[:, 0],
         pos_seq_prob[:, 1],
         c=np.arange(pos_seq_prob.shape[0]),
@@ -448,7 +610,7 @@ def update(frame):
         cmap="tab20b",
         s=100,
     )
-    axes[3, 0].scatter(
+    axes[5, 0].scatter(
         neg_seq_prob[:, 0],
         neg_seq_prob[:, 1],
         c=np.arange(neg_seq_prob.shape[0]),
@@ -457,29 +619,29 @@ def update(frame):
         s=100,
     )
     for i, (x, y) in enumerate(pos_seq_prob):
-        t = axes[3, 0].text(x, y, inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t = axes[5, 0].text(x, y, inputs[i].numpy().tolist(), fontsize=text_fontsize)
         t.set_alpha(0.3)
     for i, (x, y) in enumerate(neg_seq_prob):
-        t = axes[3, 0].text(x, y, inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t = axes[5, 0].text(x, y, inputs[i].numpy().tolist(), fontsize=text_fontsize)
         t.set_alpha(0.3)
-    axes[3, 0].set_title("Output", fontsize=title_fontsize)
+    axes[5, 0].set_title("Output", fontsize=title_fontsize)
 
-    axes[3, 1].plot(losses[: frame + 1], label="train")
-    axes[3, 1].plot(test_losses[: frame + 1], label="test")
-    axes[3, 1].set_title("Loss", fontsize=title_fontsize)
-    axes[3, 1].legend()
-    axes[3, 1].set_xlabel("Iterations")
-    axes[3, 1].set_ylabel("Loss")
+    axes[5, 1].plot(losses[: frame + 1], label="train")
+    axes[5, 1].plot(test_losses[: frame + 1], label="test")
+    axes[5, 1].set_title("Loss", fontsize=title_fontsize)
+    axes[5, 1].legend()
+    axes[5, 1].set_xlabel("Iterations")
+    axes[5, 1].set_ylabel("Loss")
 
-    axes[3, 2].plot(accs[: frame + 1], label="train")
-    axes[3, 2].plot(test_accs[: frame + 1], label="test")
-    axes[3, 2].set_title("Accuracy", fontsize=title_fontsize)
-    axes[3, 2].legend()
-    axes[3, 2].set_xlabel("Iterations")
-    axes[3, 2].set_ylabel("Accuracy")
+    axes[5, 2].plot(accs[: frame + 1], label="train")
+    axes[5, 2].plot(test_accs[: frame + 1], label="test")
+    axes[5, 2].set_title("Accuracy", fontsize=title_fontsize)
+    axes[5, 2].legend()
+    axes[5, 2].set_xlabel("Iterations")
+    axes[5, 2].set_ylabel("Accuracy")
 
 
-ani_length = 4000
+ani_length = niter  # 4000
 block_length = ani_length // 20
 for i in range(20):
     ani = animation.FuncAnimation(fig, update, frames=range(i * block_length, (i + 1) * block_length), repeat=False)
