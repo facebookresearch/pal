@@ -236,34 +236,148 @@ def update(frame):
         neg_seq_emb = model.softmax(norm(model.token_emb(neg_inputs) + model.pos_emb.weight))
         pos_seq_mlp = pos_seq_emb + model.mlp(norm(pos_seq_emb))
         neg_seq_mlp = neg_seq_emb + model.mlp(norm(neg_seq_emb))
-        out_mlp = F.softmax(model.output(grid_mlp + model.mlp(norm(grid_mlp))), dim=-1)[..., 1].view(X.shape)
-        out_out = F.softmax(model.output(grid_mlp), dim=-1)[..., 1].view(X.shape)
+        out_mlp = F.softmax(model.output(grid_mlp + model.mlp(norm(grid_mlp))), dim=-1)[..., 1].view(X_mlp.shape)
+        out_out = F.softmax(model.output(grid_mlp), dim=-1)[..., 1].view(X_out.shape)
         pos_seq_prob = F.softmax(model.output(pos_seq_mlp), dim=-1)
         neg_seq_prob = F.softmax(model.output(neg_seq_mlp), dim=-1)
 
-    axes[0, 0].scatter(token_emb[:, 0], token_emb[:, 1], c=np.arange(token_emb.shape[0]), cmap="tab20", s=100)
+    axes[0, 0].scatter(
+        token_emb[:, 0],
+        token_emb[:, 1],
+        c=np.arange(vocab_size),
+        cmap="tab20",
+        s=100,
+    )
     for i, (x, y) in enumerate(token_emb):
         axes[0, 0].text(x, y, i, fontsize=text_fontsize)
     axes[0, 0].set_title("Token Embeddings", fontsize=title_fontsize)
 
-    axes[0, 1].scatter(pos_emb[:, 0], pos_emb[:, 1], c=np.arange(pos_emb.shape[0]), cmap="tab20", s=100)
+    axes[0, 1].scatter(
+        pos_emb[:sparsity_index, 0],
+        pos_emb[:sparsity_index, 1],
+        c=np.arange(sparsity_index),
+        cmap="tab20",
+        s=100,
+        marker=pos_marker,
+    )
+    axes[0, 1].scatter(
+        pos_emb[sparsity_index:, 0],
+        pos_emb[sparsity_index:, 1],
+        c=np.arange(sparsity_index, length),
+        cmap="tab20",
+        s=100,
+        marker=neg_marker,
+    )
     for i, (x, y) in enumerate(pos_emb):
         axes[0, 1].text(x, y, i, fontsize=text_fontsize)
     axes[0, 1].set_title("Position Embeddings", fontsize=title_fontsize)
 
-    axes[0, 2].scatter(emb[:, 0], emb[:, 1], c=np.arange(emb.shape[0]), cmap="tab20", s=100)
+    axes[0, 2].scatter(
+        emb[:sparsity_index, 0],
+        emb[:sparsity_index, 1],
+        c=np.arange(sparsity_index),
+        cmap="tab20",
+        marker=pos_marker,
+        s=100,
+    )
+    axes[0, 2].scatter(
+        emb[length : length + sparsity_index, 0],
+        emb[length : length + sparsity_index, 1],
+        c=np.arange(sparsity_index),
+        cmap="tab20",
+        marker=pos_marker,
+        s=100,
+    )
+    axes[0, 2].scatter(
+        emb[sparsity_index:length, 0],
+        emb[sparsity_index:length, 1],
+        c=np.arange(sparsity_index, length),
+        cmap="tab20",
+        marker=neg_marker,
+        s=100,
+    )
+    axes[0, 2].scatter(
+        emb[length + sparsity_index :, 0],
+        emb[length + sparsity_index :, 1],
+        c=np.arange(sparsity_index, length),
+        cmap="tab20",
+        marker=neg_marker,
+        s=100,
+    )
     for i, (x, y) in enumerate(emb):
         axes[0, 2].text(x, y, (i // 12, i % 12), fontsize=text_fontsize)
     axes[0, 2].set_title("Embeddings", fontsize=title_fontsize)
 
-    axes[1, 0].scatter(norm_emb[:, 0], norm_emb[:, 1], c=np.arange(norm_emb.shape[0]), cmap="tab20", s=100)
+    axes[1, 0].scatter(
+        norm_emb[:sparsity_index, 0],
+        norm_emb[:sparsity_index, 1],
+        c=np.arange(sparsity_index),
+        cmap="tab20",
+        marker=pos_marker,
+        s=100,
+    )
+    axes[1, 0].scatter(
+        norm_emb[length : length + sparsity_index, 0],
+        norm_emb[length : length + sparsity_index, 1],
+        c=np.arange(sparsity_index),
+        cmap="tab20",
+        marker=pos_marker,
+        s=100,
+    )
+    axes[1, 0].scatter(
+        norm_emb[sparsity_index:length, 0],
+        norm_emb[sparsity_index:length, 1],
+        c=np.arange(sparsity_index, length),
+        cmap="tab20",
+        marker=neg_marker,
+        s=100,
+    )
+    axes[1, 0].scatter(
+        norm_emb[length + sparsity_index :, 0],
+        norm_emb[length + sparsity_index :, 1],
+        c=np.arange(sparsity_index, length),
+        cmap="tab20",
+        marker=neg_marker,
+        s=100,
+    )
     for i, (x, y) in enumerate(norm_emb):
         axes[1, 0].text(x, y, (i // 12, i % 12), fontsize=text_fontsize)
     axes[1, 0].arrow(0, 0, query[0, 0], query[0, 1], head_width=0.1, head_length=0.1, fc="r", ec="r")
     axes[1, 0].text(0, 0, "query", fontsize=text_fontsize + 2, color="r")
     axes[1, 0].set_title("Normed Embeddings", fontsize=title_fontsize)
 
-    axes[1, 1].scatter(emb_val[:, 0], emb_val[:, 1], c=np.arange(emb_val.shape[0]), cmap="tab20", s=100)
+    axes[1, 1].scatter(
+        emb_val[:sparsity_index, 0],
+        emb_val[:sparsity_index, 1],
+        c=np.arange(sparsity_index),
+        cmap="tab20",
+        marker=pos_marker,
+        s=100,
+    )
+    axes[1, 1].scatter(
+        emb_val[length : length + sparsity_index, 0],
+        emb_val[length : length + sparsity_index, 1],
+        c=np.arange(sparsity_index),
+        cmap="tab20",
+        marker=pos_marker,
+        s=100,
+    )
+    axes[1, 1].scatter(
+        emb_val[sparsity_index:length, 0],
+        emb_val[sparsity_index:length, 1],
+        c=np.arange(sparsity_index, length),
+        cmap="tab20",
+        marker=neg_marker,
+        s=100,
+    )
+    axes[1, 1].scatter(
+        emb_val[length + sparsity_index :, 0],
+        emb_val[length + sparsity_index :, 1],
+        c=np.arange(sparsity_index, length),
+        cmap="tab20",
+        marker=neg_marker,
+        s=100,
+    )
     for i, (x, y) in enumerate(emb_val):
         axes[1, 1].text(x, y, (i // 12, i % 12), fontsize=text_fontsize)
     axes[1, 1].set_title("Value", fontsize=title_fontsize)
@@ -365,8 +479,8 @@ def update(frame):
     axes[3, 2].set_ylabel("Accuracy")
 
 
-length = 4000
-block_length = length // 20
+ani_length = 4000
+block_length = ani_length // 20
 for i in range(20):
     ani = animation.FuncAnimation(fig, update, frames=range(i * block_length, (i + 1) * block_length), repeat=False)
     ani.save(SAVE_DIR / f"full_{i}.mp4", writer="ffmpeg", fps=20)
@@ -378,3 +492,5 @@ file_list = [str(SAVE_DIR / f"full_{i}.mp4") for i in range(18)]
 clips = [mpy.VideoFileClip(file) for file in file_list]
 concat_clip = mpy.concatenate_videoclips(clips)
 concat_clip.write_videofile(str(SAVE_DIR / "full_visu.mp4"))
+
+# %%
