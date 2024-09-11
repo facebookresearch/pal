@@ -162,6 +162,11 @@ axes[1].grid()
 
 DEVICE = "cpu"
 
+# modules
+model.eval()
+model.to(DEVICE)
+norm = RMSNorm()
+
 # data
 prefix = [
     [0, 0, 0, 0, 0],
@@ -186,14 +191,16 @@ targets = inputs[:, :sparsity_index].sum(dim=1) % vocab_size
 pos_inputs = inputs[targets == 1]
 neg_inputs = inputs[targets == 0]
 
+tmpx = torch.linspace(-1, 1, 50)
+tmpy = torch.linspace(-1, 1, 50)
+X_mlp, Y_mlp = torch.meshgrid(tmpx, tmpy)
+grid_mlp = torch.stack([X_mlp, Y_mlp], dim=-1).to(DEVICE).view(-1, 2)
+
+
 tmpx = torch.linspace(-2.5, 2.5, 50)
 tmpy = torch.linspace(-3.5, 2.5, 50)
-X, Y = torch.meshgrid(tmpx, tmpy)
-grid = torch.stack([X, Y], dim=-1).to(DEVICE)
-
-# modules
-model.to(DEVICE)
-norm = RMSNorm()
+X_out, Y_out = torch.meshgrid(tmpx, tmpy)
+grid_mlp = torch.stack([X_out, Y_out], dim=-1).to(DEVICE).view(-1, 2)
 
 # Create Animation
 
@@ -225,11 +232,12 @@ def update(frame):
 
     model.load_state_dict(weights[frame])
     with torch.no_grad():
-        pos_seq_emb = model.softmax(model.norm1(model.token_emb(pos_inputs) + model.pos_emb.weight))
-        neg_seq_emb = model.softmax(model.norm1(model.token_emb(neg_inputs) + model.pos_emb.weight))
-        pos_seq_mlp = pos_seq_emb + model.mlp(model.norm2(pos_seq_emb))
-        neg_seq_mlp = neg_seq_emb + model.mlp(model.norm2(neg_seq_emb))
-        outputs = F.softmax(model.output(grid + model.mlp(model.norm2(grid))), dim=-1)[..., 1]
+        pos_seq_emb = model.softmax(norm(model.token_emb(pos_inputs) + model.pos_emb.weight))
+        neg_seq_emb = model.softmax(norm(model.token_emb(neg_inputs) + model.pos_emb.weight))
+        pos_seq_mlp = pos_seq_emb + model.mlp(norm(pos_seq_emb))
+        neg_seq_mlp = neg_seq_emb + model.mlp(norm(neg_seq_emb))
+        out_mlp = F.softmax(model.output(grid_mlp + model.mlp(norm(grid_mlp))), dim=-1)[..., 1].view(X.shape)
+        out_out = F.softmax(model.output(grid_mlp), dim=-1)[..., 1].view(X.shape)
         pos_seq_prob = F.softmax(model.output(pos_seq_mlp), dim=-1)
         neg_seq_prob = F.softmax(model.output(neg_seq_mlp), dim=-1)
 
@@ -274,21 +282,21 @@ def update(frame):
         t.set_alpha(0.3)
     axes[1, 2].set_title("Sequence Embeddings", fontsize=title_fontsize)
 
+    axes[2, 0].contourf(X_mlp, Y_mlp, out_mlp, cmap="coolwarm", vmin=0, vmax=1)
     axes[2, 0].scatter(
-        pos_seq_mlp[:, 0], pos_seq_mlp[:, 1], c=np.arange(pos_seq_mlp.shape[0]), marker=pos_marker, cmap="tab20b", s=100
+        pos_seq_emb[:, 0], pos_seq_emb[:, 1], c=np.arange(pos_seq_emb.shape[0]), marker=pos_marker, cmap="tab20b", s=100
     )
     axes[2, 0].scatter(
-        neg_seq_mlp[:, 0], neg_seq_mlp[:, 1], c=np.arange(neg_seq_mlp.shape[0]), marker=neg_marker, cmap="tab20b", s=100
+        neg_seq_emb[:, 0], neg_seq_emb[:, 1], c=np.arange(neg_seq_emb.shape[0]), marker=neg_marker, cmap="tab20b", s=100
     )
-    for i, (x, y) in enumerate(pos_seq_mlp):
-        t = axes[2, 0].text(x, y, inputs[i].numpy().tolist(), fontsize=text_fontsize)
+    for i, (x, y) in enumerate(pos_seq_emb):
+        t = axes[2, 0].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
         t.set_alpha(0.3)
-    for i, (x, y) in enumerate(neg_seq_mlp):
-        t = axes[2, 0].text(x, y, inputs[i].numpy().tolist(), fontsize=text_fontsize)
+    for i, (x, y) in enumerate(neg_seq_emb):
+        t = axes[2, 0].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
         t.set_alpha(0.3)
-    axes[2, 0].set_title("MLP transform", fontsize=title_fontsize)
+    axes[2, 0].set_title("MLP level lines", fontsize=title_fontsize)
 
-    CS = axes[2, 1].contourf(Y, X, outputs, cmap="coolwarm", vmin=0, vmax=1)
     axes[2, 1].scatter(
         pos_seq_mlp[:, 0], pos_seq_mlp[:, 1], c=np.arange(pos_seq_mlp.shape[0]), marker=pos_marker, cmap="tab20b", s=100
     )
@@ -296,16 +304,29 @@ def update(frame):
         neg_seq_mlp[:, 0], neg_seq_mlp[:, 1], c=np.arange(neg_seq_mlp.shape[0]), marker=neg_marker, cmap="tab20b", s=100
     )
     for i, (x, y) in enumerate(pos_seq_mlp):
-        t = axes[2, 1].text(x, y, inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t = axes[2, 1].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
         t.set_alpha(0.3)
     for i, (x, y) in enumerate(neg_seq_mlp):
-        t = axes[2, 1].text(x, y, inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t = axes[2, 1].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
         t.set_alpha(0.3)
-    axes[2, 1].set_title("MLP level lines", fontsize=title_fontsize)
-    # show colorbar
-    cbar = plt.colorbar(CS, ax=axes[2, 1])
+    axes[2, 1].set_title("MLP transform", fontsize=title_fontsize)
 
+    axes[2, 2].contourf(X_out, Y_out, out_out, cmap="coolwarm", vmin=0, vmax=1)
     axes[2, 2].scatter(
+        pos_seq_mlp[:, 0], pos_seq_mlp[:, 1], c=np.arange(pos_seq_mlp.shape[0]), marker=pos_marker, cmap="tab20b", s=100
+    )
+    axes[2, 2].scatter(
+        neg_seq_mlp[:, 0], neg_seq_mlp[:, 1], c=np.arange(neg_seq_mlp.shape[0]), marker=neg_marker, cmap="tab20b", s=100
+    )
+    for i, (x, y) in enumerate(pos_seq_mlp):
+        t = axes[2, 2].text(x, y, pos_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t.set_alpha(0.3)
+    for i, (x, y) in enumerate(neg_seq_mlp):
+        t = axes[2, 2].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t.set_alpha(0.3)
+    axes[2, 2].set_title("Output level lines", fontsize=title_fontsize)
+
+    axes[3, 0].scatter(
         pos_seq_prob[:, 0],
         pos_seq_prob[:, 1],
         c=np.arange(pos_seq_prob.shape[0]),
@@ -313,7 +334,7 @@ def update(frame):
         cmap="tab20b",
         s=100,
     )
-    axes[2, 2].scatter(
+    axes[3, 0].scatter(
         neg_seq_prob[:, 0],
         neg_seq_prob[:, 1],
         c=np.arange(neg_seq_prob.shape[0]),
@@ -322,63 +343,38 @@ def update(frame):
         s=100,
     )
     for i, (x, y) in enumerate(pos_seq_prob):
-        t = axes[2, 2].text(x, y, inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t = axes[3, 0].text(x, y, inputs[i].numpy().tolist(), fontsize=text_fontsize)
         t.set_alpha(0.3)
     for i, (x, y) in enumerate(neg_seq_prob):
-        t = axes[2, 2].text(x, y, inputs[i].numpy().tolist(), fontsize=text_fontsize)
+        t = axes[3, 0].text(x, y, inputs[i].numpy().tolist(), fontsize=text_fontsize)
         t.set_alpha(0.3)
-    axes[2, 2].set_title("Output", fontsize=title_fontsize)
+    axes[3, 0].set_title("Output", fontsize=title_fontsize)
 
-    axes[3, 0].plot(losses[: frame + 1], label="train")
-    axes[3, 0].plot(test_losses[: frame + 1], label="test")
-    axes[3, 0].set_title("Loss", fontsize=title_fontsize)
-    axes[3, 0].legend()
-    axes[3, 0].set_xlabel("Iterations")
-    axes[3, 0].set_ylabel("Loss")
-
-    axes[3, 1].plot(accs[: frame + 1], label="train")
-    axes[3, 1].plot(test_accs[: frame + 1], label="test")
-    axes[3, 1].set_title("Accuracy", fontsize=title_fontsize)
+    axes[3, 1].plot(losses[: frame + 1], label="train")
+    axes[3, 1].plot(test_losses[: frame + 1], label="test")
+    axes[3, 1].set_title("Loss", fontsize=title_fontsize)
     axes[3, 1].legend()
     axes[3, 1].set_xlabel("Iterations")
-    axes[3, 1].set_ylabel("Accuracy")
+    axes[3, 1].set_ylabel("Loss")
+
+    axes[3, 2].plot(accs[: frame + 1], label="train")
+    axes[3, 2].plot(test_accs[: frame + 1], label="test")
+    axes[3, 2].set_title("Accuracy", fontsize=title_fontsize)
+    axes[3, 2].legend()
+    axes[3, 2].set_xlabel("Iterations")
+    axes[3, 2].set_ylabel("Accuracy")
 
 
-update(-1)
-# length = 4000
-# block_length = length // 20
-# for i in range(20):
-#     ani = animation.FuncAnimation(fig, update, frames=range(i * block_length, (i + 1) * block_length), repeat=False)
-#     ani.save(SAVE_DIR / f"full_{i}.mp4", writer="ffmpeg", fps=20)
+length = 4000
+block_length = length // 20
+for i in range(20):
+    ani = animation.FuncAnimation(fig, update, frames=range(i * block_length, (i + 1) * block_length), repeat=False)
+    ani.save(SAVE_DIR / f"full_{i}.mp4", writer="ffmpeg", fps=20)
 
-# %% Concatenate the different videos
+# %% Aggregate videos
 
 # List of .mp4 files to concatenate
 file_list = [str(SAVE_DIR / f"full_{i}.mp4") for i in range(18)]
 clips = [mpy.VideoFileClip(file) for file in file_list]
 concat_clip = mpy.concatenate_videoclips(clips)
 concat_clip.write_videofile(str(SAVE_DIR / "full_visu.mp4"))
-
-# %%
-
-print(len(markers))
-print(len(inputs))
-
-# %%
-
-import matplotlib.pyplot as plt
-
-# Create some sample data
-x = [1, 2, 3, 4, 5]
-y = [2, 4, 6, 8, 10]
-
-# Create a list of markers
-markers = ["o", "s", "^", "v", "<"]
-
-# Create a scatter plot with different markers for each data point
-plt.scatter(x, y, marker=markers)
-
-# Show the plot
-plt.show()
-
-# %%
