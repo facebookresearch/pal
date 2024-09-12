@@ -39,7 +39,7 @@ class DataloaderConfig:
 
 
 class SMADataset(Dataset):
-    def __init__(self, config: DatasetConfig, rng: np.random.Generator = None):
+    def __init__(self, config: DatasetConfig, rng: np.random.Generator = None, device: torch.device = "cpu"):
         self.len = config.seq_length
         self.p = config.vocab_size
         self.k = config.sparsity_index
@@ -50,8 +50,8 @@ class SMADataset(Dataset):
         data = rng.integers(0, self.p, (self.n, self.len))
         targets = np.sum(data[:, : self.k], axis=1) % self.p
 
-        self.data = torch.from_numpy(data).to(torch.long)
-        self.targets = torch.from_numpy(targets).to(torch.long)
+        self.data = torch.from_numpy(data).to(dtype=torch.long, device=device)
+        self.targets = torch.from_numpy(targets).to(dtype=torch.long, device=device)
 
     def __len__(self):
         return len(self.data)
@@ -60,11 +60,11 @@ class SMADataset(Dataset):
         return self.data[idx], self.targets[idx]
 
     def __repr__(self):
-        print(f"Dataset with {self.n} sequences among {self.vocab_size ** self.seq_length} unique ones.")
+        return f"Dataset with {self.n} sequences among {self.p ** self.len} unique ones."
 
 
-def SMADataloader(config: DataloaderConfig):
-    dataset = SMADataset(config)
+def SMADataloader(config: DataloaderConfig, rng: np.random.Generator = None, device: torch.device = "cpu"):
+    dataset = SMADataset(config, rng=rng, device=device)
     loader = torch.utils.data.DataLoader(
         dataset, batch_size=config.batch_size, shuffle=True if config.mode == "train" else False
     )

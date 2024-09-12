@@ -8,3 +8,7 @@ in the root directory of this source tree.
 
 @ 2024, Meta
 """
+
+from pathlib import Path
+
+SAVE_DIR = Path(__file__).resolve().parents[2] / "pruning" / "results"

@@ -1,28 +1,25 @@
 # %% Imports
 
 import copy
+import logging
 import pickle
-import sys
-from pathlib import Path
+from dataclasses import dataclass
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
+from factorization.config import SAVE_DIR
+from factorization.data.modular import DataloaderConfig, SMADataloader
 from factorization.models.softmax_model import Model
 
-sys.path.append(str(Path("..").resolve()))
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler()]
+)
 
-
-SAVE_DIR = Path(".").resolve() / "results"
-DEVICE = torch.cuda.current_device() if torch.cuda.is_available() else torch.device("cpu")
-SEED = None
-SEED = 200
-if SEED:
-    RNG = np.random.default_rng(SEED)
-    np.random.seed(seed=SEED)
-    torch.manual_seed(seed=SEED)
+DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
 # %% Utils
@@ -35,92 +32,168 @@ def copy_weights(model):
         return {k: v.cpu().detach() for k, v in model.state_dict().items()}
 
 
-# %% Data
+@dataclass
+class ExperimentConfig:
+    # data
+    vocab_size: int = 2
+    seq_length: int = 12
+    sparsity_index: int = 5
+    nb_data: int = 2048
 
-vocab_size = 2
-# vocab_size = 4
-bsz = 2048
-length = 12
-sparsity_index = 5
+    # optimization
+    batch_size: int = None
+    nb_epochs: int = 4_000
+    lambda_l1: float = 1e-4
+    lr: float = 1e-2
 
-# modular addition problem on some subset of the input only
-data = np.random.rand(bsz, length) // (1 / vocab_size)
-targets = data[:, :sparsity_index].sum(axis=1) % vocab_size
+    # model
+    emb_dim: int = 2
+    nb_emb: int = None
+    ffn_dim: int = None
+    ffn_bias: bool = True
+    ffn_dropout: float = 0
+    activation: float = "gelu"
 
-test_bsz = 128
-test_data = np.random.rand(test_bsz, length) // (1 / vocab_size)
-test_targets = test_data[:, :sparsity_index].sum(axis=1) % vocab_size
-
-print(f"Total number of unique sequences {vocab_size ** length}")
-
-
-# %% Model
-
-emb_dim = 2
-# ffn_dim = 4 * emb_dim
-ffn_dim = 10
-vocab_size = 2
-torch.manual_seed(20)
-
-model = Model(emb_dim=emb_dim, vocab_size=vocab_size, length=length, ffn_dim=ffn_dim)
-print(f"Number of parameters: {sum(p.numel() for p in model.parameters())}")
-
-model.to(device=DEVICE)
+    def __post_init__(self):
+        if self.batch_size is None:
+            self.batch_size = self.nb_data
+        if self.nb_emb is None:
+            self.nb_emb = self.vocab_size
+        if self.ffn_dim is None:
+            self.ffn_dim = 4 * self.emb_dim
 
 
-# %% Training Loop
-
-niter = 4_000  # 2
-
-X = torch.from_numpy(data).to(dtype=torch.long, device=DEVICE)
-Y = torch.from_numpy(targets).to(dtype=torch.long, device=DEVICE)
-
-X_test = torch.from_numpy(test_data).to(dtype=torch.long, device=DEVICE)
-Y_test = torch.from_numpy(test_targets).to(dtype=torch.long, device=DEVICE)
-
-# optimizer
-lambda_l1 = 1e-4
-lr = 1e-2  # emb_dim == 2 & ffn_dim == 32 & reg_l1 & model_seed 20
-optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
-losses = torch.zeros(niter)
-test_losses = torch.zeros(niter)
-accs = torch.zeros(niter)
-test_accs = torch.zeros(niter)
-
-weights = [copy_weights(model)]
-
-for i in (bar := tqdm(range(niter))):
-    optimizer.zero_grad()
-
-    # compute loss
-    score = model(X, verbose=False)
-    loss = F.cross_entropy(score.view((-1, vocab_size)), Y.view(-1))
-    reg_loss = lambda_l1 * sum(p.abs().sum() for p in model.parameters())
-
-    loss.backward()
-    reg_loss.backward()
-    optimizer.step()
-
-    # record statistics
-    with torch.no_grad():
-        losses[i] = loss.item()
-        accs[i] = (score.argmax(-1) == Y).float().mean()
-        score_test = model(X_test)
-        test_losses[i] = F.cross_entropy(score_test.view((-1, vocab_size)), Y_test.view(-1))
-        test_accs[i] = (score_test.argmax(-1) == Y_test).float().mean()
-        weights.append(copy_weights(model))
-
-    bar.set_postfix(loss=losses[i].item(), acc=accs[i].item(), test_acc=test_accs[i].item())
+# %% Main function
 
 
-# %% Saving the model
+def run_experiments(
+    seed: int = None,
+    save_weights: bool = False,
+    vocab_size: int = 2,
+    seq_length: int = 12,
+    sparsity_index: int = 5,
+    nb_data: int = 2048,
+    batch_size: int = None,
+    nb_epochs: int = 4_000,
+    lambda_l1: float = 1e-4,
+    lr: float = 1e-2,
+    emb_dim: int = 2,
+    nb_emb: int = None,
+    ffn_dim: int = 10,
+    ffn_bias: bool = True,
+    ffn_dropout: float = 0,
+    activation: float = "gelu",
+):
+    if seed:
+        RNG = np.random.default_rng(seed)
+        np.random.seed(seed=seed)
+        torch.manual_seed(seed=seed)
 
-SAVE_DIR.mkdir(exist_ok=True, parents=True)
-pickle.dump(weights, open(SAVE_DIR / "weights.pkl", "wb"))
-pickle.dump(losses, open(SAVE_DIR / "losses.pkl", "wb"))
-pickle.dump(test_losses, open(SAVE_DIR / "test_losses.pkl", "wb"))
-pickle.dump(accs, open(SAVE_DIR / "accs.pkl", "wb"))
-pickle.dump(test_accs, open(SAVE_DIR / "test_accs.pkl", "wb"))
+    config = ExperimentConfig(
+        vocab_size=vocab_size,
+        seq_length=seq_length,
+        sparsity_index=sparsity_index,
+        nb_data=nb_data,
+        batch_size=batch_size,
+        nb_epochs=nb_epochs,
+        lambda_l1=lambda_l1,
+        lr=lr,
+        emb_dim=emb_dim,
+        nb_emb=nb_emb,
+        ffn_dim=ffn_dim,
+        ffn_bias=ffn_bias,
+        ffn_dropout=ffn_dropout,
+        activation=activation,
+    )
 
-# %%
+    # Data
+    data_config = DataloaderConfig(
+        vocab_size=config.vocab_size,
+        seq_length=config.seq_length,
+        sparsity_index=config.sparsity_index,
+        nb_data=config.nb_data,
+        batch_size=config.batch_size,
+        mode="train",
+    )
+    train_loader = SMADataloader(data_config, rng=RNG, device=DEVICE)
+    data_config.mode = "test"
+    test_loader = SMADataloader(data_config, rng=RNG, device=DEVICE)
+
+    logger.info(f"Training set: {train_loader.dataset}")
+    logger.info(f"Testing set: {test_loader.dataset}")
+
+    # Model
+
+    tmp = config.vocab_size
+    config.vocab_size = config.nb_emb
+    model = Model(config)
+    config.vocab_size = tmp
+    model.to(device=DEVICE)
+    logger.info(f"Model with {sum(p.numel() for p in model.parameters())} parameters, running on {DEVICE}")
+
+    # Training Loop
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+
+    losses = torch.zeros(config.nb_epochs)
+    test_losses = torch.zeros(config.nb_epochs)
+    accs = torch.zeros(config.nb_epochs)
+    test_accs = torch.zeros(config.nb_epochs)
+
+    if save_weights:
+        weights = [copy_weights(model)]
+
+    X_train = train_loader.dataset.data
+    Y_train = train_loader.dataset.targets
+    X_test = test_loader.dataset.data
+    Y_test = test_loader.dataset.targets
+
+    for epoch in (bar := tqdm(range(config.nb_epochs))):
+
+        for X, Y in train_loader:
+            # X = X.to(device=DEVICE)
+            # Y = Y.to(device=DEVICE)
+
+            optimizer.zero_grad()
+
+            # forward
+            score = model(X, verbose=False)
+            loss = F.cross_entropy(score, Y)
+            reg_loss = config.lambda_l1 * sum(p.abs().sum() for p in model.parameters())
+
+            # backward
+            loss.backward()
+            reg_loss.backward()
+            optimizer.step()
+
+        # record statistics
+        with torch.no_grad():
+            score = model(X_train, verbose=False)
+            loss = F.cross_entropy(score, Y_train)
+            losses[epoch] = loss.item()
+            accs[epoch] = (score.argmax(-1) == Y_train).float().mean()
+            score_test = model(X_test)
+            test_losses[epoch] = F.cross_entropy(score_test, Y_test)
+            test_accs[epoch] = (score_test.argmax(-1) == Y_test).float().mean()
+            if save_weights:
+                weights.append(copy_weights(model))
+
+        bar.set_postfix(loss=losses[epoch].item(), acc=accs[epoch].item(), test_acc=test_accs[epoch].item())
+
+    # Saving results
+
+    SAVE_DIR.mkdir(exist_ok=True, parents=True)
+    pickle.dump(losses, open(SAVE_DIR / "losses.pkl", "wb"))
+    pickle.dump(test_losses, open(SAVE_DIR / "test_losses.pkl", "wb"))
+    pickle.dump(accs, open(SAVE_DIR / "accs.pkl", "wb"))
+    pickle.dump(test_accs, open(SAVE_DIR / "test_accs.pkl", "wb"))
+    if save_weights:
+        pickle.dump(weights, open(SAVE_DIR / "weights.pkl", "wb"))
+
+
+# %% CLI
+
+if __name__ == "__main__":
+    import fire
+
+    fire.Fire(run_experiments)

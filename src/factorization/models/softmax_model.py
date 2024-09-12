@@ -97,6 +97,19 @@ class SoftmaxLayer(nn.Module):
 # --------------------------------------------------------------------------------
 
 
+@dataclass
+class TransformerConfig:
+    activation: float = "gelu"
+    emb_dim: bool = None
+    ffn_dim: bool = None
+    ffn_bias: bool = False
+    ffn_dropout: float = 0
+
+    def __post_init__(self):
+        if self.ffn_dim is None:
+            self.ffn_dim = 4 * self.emb_dim
+
+
 class TransformerFeedForward(nn.Module):
     """
     Feed-forward network in transformer architecture.
@@ -116,7 +129,7 @@ class TransformerFeedForward(nn.Module):
             dropout probability
     """
 
-    def __init__(self, config):
+    def __init__(self, config: TransformerConfig):
         super().__init__()
         self.fc1 = nn.Linear(config.emb_dim, config.ffn_dim, bias=config.ffn_bias)
         self.fc2 = nn.Linear(config.ffn_dim, config.emb_dim, bias=config.ffn_bias)
@@ -163,6 +176,11 @@ class RMSNorm(nn.Module):
 
 @dataclass
 class ModelConfig:
+    # embeddings
+    vocab_size: int = None
+    seq_length: int = None
+
+    # transformer
     activation: float = "gelu"
     emb_dim: bool = None
     ffn_dim: bool = None
@@ -175,23 +193,15 @@ class ModelConfig:
 
 
 class Model(nn.Module):
-    def __init__(self, emb_dim, vocab_size, length, ffn_dim=None):
-        if ffn_dim is None:
-            ffn_dim = 4 * emb_dim
+    def __init__(self, config: ModelConfig):
         super(Model, self).__init__()
-        self.token_emb = nn.Embedding(vocab_size, emb_dim)
-        self.pos_emb = nn.Embedding(length, emb_dim)
+        self.token_emb = nn.Embedding(config.vocab_size, config.emb_dim)
+        self.pos_emb = nn.Embedding(config.seq_length, config.emb_dim)
 
-        self.softmax = SoftmaxLayer(emb_dim)
-        config = ModelConfig(
-            emb_dim=emb_dim,
-            ffn_dim=ffn_dim,
-            ffn_bias=True,
-            activation="gelu",
-        )
+        self.softmax = SoftmaxLayer(config.emb_dim)
         self.mlp = TransformerFeedForward(config)
 
-        self.output = nn.Linear(emb_dim, vocab_size, bias=False)
+        self.output = nn.Linear(config.emb_dim, config.vocab_size, bias=False)
         self.output.weight = self.token_emb.weight
 
         self.norm1 = RMSNorm()
