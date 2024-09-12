@@ -1,9 +1,14 @@
 # %% Imports
 
 import copy
+import fcntl
+import json
 import logging
 import pickle
-from dataclasses import dataclass
+import traceback
+import uuid
+from dataclasses import asdict, dataclass
+from itertools import product
 
 import numpy as np
 import torch
@@ -54,6 +59,13 @@ class ExperimentConfig:
     ffn_dropout: float = 0
     activation: float = "gelu"
 
+    # randomness
+    seed: int = None
+
+    # saving
+    save_weights: bool = False
+    interactive: bool = True
+
     def __post_init__(self):
         if self.batch_size is None:
             self.batch_size = self.nb_data
@@ -66,47 +78,25 @@ class ExperimentConfig:
 # %% Main function
 
 
-def run_experiments(
-    seed: int = None,
-    save_weights: bool = False,
-    vocab_size: int = 2,
-    seq_length: int = 12,
-    sparsity_index: int = 5,
-    nb_data: int = 2048,
-    batch_size: int = None,
-    nb_epochs: int = 4_000,
-    lambda_l1: float = 1e-4,
-    lr: float = 1e-2,
-    emb_dim: int = 2,
-    nb_emb: int = None,
-    ffn_dim: int = 10,
-    ffn_bias: bool = True,
-    ffn_dropout: float = 0,
-    activation: float = "gelu",
-):
-    if seed:
-        RNG = np.random.default_rng(seed)
-        np.random.seed(seed=seed)
-        torch.manual_seed(seed=seed)
+def run_from_config(config: ExperimentConfig):
+    if config.seed is not None:
+        RNG = np.random.default_rng(config.seed)
+        np.random.seed(seed=config.seed)
+        torch.manual_seed(seed=config.seed)
+    else:
+        RNG = np.random.default_rng()
 
-    config = ExperimentConfig(
-        vocab_size=vocab_size,
-        seq_length=seq_length,
-        sparsity_index=sparsity_index,
-        nb_data=nb_data,
-        batch_size=batch_size,
-        nb_epochs=nb_epochs,
-        lambda_l1=lambda_l1,
-        lr=lr,
-        emb_dim=emb_dim,
-        nb_emb=nb_emb,
-        ffn_dim=ffn_dim,
-        ffn_bias=ffn_bias,
-        ffn_dropout=ffn_dropout,
-        activation=activation,
-    )
+    unique_id = uuid.uuid4().hex
+    save_dir = SAVE_DIR / unique_id
+
+    with open(SAVE_DIR / "config.jsonl", "a") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        json.dump(asdict(config) | {"id": unique_id}, f)
+        f.write("\n")
+        fcntl.flock(f, fcntl.LOCK_UN)
 
     # Data
+
     data_config = DataloaderConfig(
         vocab_size=config.vocab_size,
         seq_length=config.seq_length,
@@ -140,7 +130,7 @@ def run_experiments(
     accs = torch.zeros(config.nb_epochs)
     test_accs = torch.zeros(config.nb_epochs)
 
-    if save_weights:
+    if config.save_weights:
         weights = [copy_weights(model)]
 
     X_train = train_loader.dataset.data
@@ -148,7 +138,7 @@ def run_experiments(
     X_test = test_loader.dataset.data
     Y_test = test_loader.dataset.targets
 
-    for epoch in (bar := tqdm(range(config.nb_epochs))):
+    for epoch in (bar := tqdm(range(config.nb_epochs), disable=not config.interactive)):
 
         for X, Y in train_loader:
             # X = X.to(device=DEVICE)
@@ -175,20 +165,121 @@ def run_experiments(
             score_test = model(X_test)
             test_losses[epoch] = F.cross_entropy(score_test, Y_test)
             test_accs[epoch] = (score_test.argmax(-1) == Y_test).float().mean()
-            if save_weights:
+            if config.save_weights:
                 weights.append(copy_weights(model))
 
-        bar.set_postfix(loss=losses[epoch].item(), acc=accs[epoch].item(), test_acc=test_accs[epoch].item())
+        if config.interactive:
+            bar.set_postfix(loss=losses[epoch].item(), acc=accs[epoch].item(), test_acc=test_accs[epoch].item())
+        else:
+            logger.info(
+                f"Epoch {epoch}/{config.nb_epochs}: "
+                f"loss={losses[epoch].item()}, "
+                f"acc={accs[epoch].item()}, test_acc={test_accs[epoch].item()}"
+            )
 
     # Saving results
 
-    SAVE_DIR.mkdir(exist_ok=True, parents=True)
-    pickle.dump(losses, open(SAVE_DIR / "losses.pkl", "wb"))
-    pickle.dump(test_losses, open(SAVE_DIR / "test_losses.pkl", "wb"))
-    pickle.dump(accs, open(SAVE_DIR / "accs.pkl", "wb"))
-    pickle.dump(test_accs, open(SAVE_DIR / "test_accs.pkl", "wb"))
-    if save_weights:
-        pickle.dump(weights, open(SAVE_DIR / "weights.pkl", "wb"))
+    save_dir.mkdir(exist_ok=True, parents=True)
+    pickle.dump(losses, open(save_dir / "losses.pkl", "wb"))
+    pickle.dump(test_losses, open(save_dir / "test_losses.pkl", "wb"))
+    pickle.dump(accs, open(save_dir / "accs.pkl", "wb"))
+    pickle.dump(test_accs, open(save_dir / "test_accs.pkl", "wb"))
+    if config.save_weights:
+        pickle.dump(weights, open(save_dir / "weights.pkl", "wb"))
+
+
+# %% CLI Wrapper
+
+
+def run_experiments(
+    vocab_size: int = 2,
+    seq_length: int = 12,
+    sparsity_index: int = 5,
+    nb_data: int = 2048,
+    batch_size: int = None,
+    nb_epochs: int = 1_000,
+    lambda_l1: float = 1e-4,
+    lr: float = 1e-2,
+    emb_dim: int = 2,
+    nb_emb: int = None,
+    ffn_dim: int = 10,
+    ffn_bias: bool = True,
+    ffn_dropout: float = 0,
+    activation: float = "gelu",
+    seed: int = None,
+    save_weights: bool = False,
+):
+    config = ExperimentConfig(
+        vocab_size=vocab_size,
+        seq_length=seq_length,
+        sparsity_index=sparsity_index,
+        nb_data=nb_data,
+        batch_size=batch_size,
+        nb_epochs=nb_epochs,
+        lambda_l1=lambda_l1,
+        lr=lr,
+        emb_dim=emb_dim,
+        nb_emb=nb_emb,
+        ffn_dim=ffn_dim,
+        ffn_bias=ffn_bias,
+        ffn_dropout=ffn_dropout,
+        activation=activation,
+        seed=seed,
+        save_weights=save_weights,
+    )
+
+    run_from_config(config)
+
+
+# %% Grid run
+
+
+def run_grid(
+    num_tasks=1,
+    task_id=1,
+):
+    grid = {
+        "vocab_size": [2],
+        "seq_length": [12],
+        "sparsity_index": [5],
+        "nb_data": [2048],
+        "batch_size": [None],
+        "nb_epochs": [1_000],
+        "lambda_l1": [1e-4, 0],
+        "lr": [1e-2, 1e-3],
+        "emb_dim": [2, 3],
+        "nb_emb": [3],
+        "ffn_dim": [10],
+        "ffn_bias": [True],
+        "ffn_dropout": [0],
+        "activation": ["gelu"],
+        "seed": range(100),
+        "save_weights": [False],
+    }
+    all_configs = product(*grid.values())
+
+    logger.info(f"Running {len(list(all_configs))} configurations with {num_tasks} tasks.")
+
+    for i, values in enumerate(product(*grid.values())):
+        # Handling the grid concurrently with many tasks
+        if i % num_tasks != (task_id - 1):
+            continue
+
+        # setup configuration
+        kwargs = {"interactive": False}
+        for k, v in zip(grid.keys(), values):
+            kwargs[k] = v
+        config = ExperimentConfig(**kwargs)
+
+        logger.info(f"{config=}")
+
+        try:
+            run_from_config(config)
+        except Exception as e:
+            logger.warning(f"Error for configuration: {config}.")
+            logger.warning(traceback.format_exc())
+            logger.warning(e)
+            continue
 
 
 # %% CLI
@@ -196,4 +287,11 @@ def run_experiments(
 if __name__ == "__main__":
     import fire
 
-    fire.Fire(run_experiments)
+    fire.Fire(
+        {
+            "run": run_experiments,
+            "grid": run_grid,
+        }
+    )
+
+# %%

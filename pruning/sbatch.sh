@@ -1,20 +1,21 @@
-#!/bin/zsh
+#!/usr/bin/bash
 
-#SBATCH --time=12:00:00
+# Logging configuration
+#SBATCH --job-name=modular
+#SBATCH --output=/checkpoint/%u/modular/%j-%a.out
+#SBATCH --error=/checkpoint/%u/modular/%j-%a.err
+#SBATCH --mail-type=END
+#SBATCH --mail-user=%u@meta.com
+
+# Job specification
+#SBATCH --partition=scavenge
+#SBATCH --time=5:00:00
+#SBATCH --mem=64G
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --mem=64G
 #SBATCH --cpus-per-task=10
-#SBATCH --gpus=1
 #SBATCH --gpus-per-node=1
-#SBATCH --partition=scavenge
 #SBATCH --array=1-500
-#SBATCH --signal=B:SIGUSR1@120
 
-#SBATCH --job-name=exp
-#SBATCH --output=log/%j/%j.out
-#SBATCH --error=log/%j/%j.err
-#SBATCH --open-mode=append
 
-ARRAY_SIZE=500
-srun python ./launcher.py --array_size $ARRAY_SIZE --task $SLURM_ARRAY_TASK_ID
+python /private/home/vivc/code/memory-theory/pruning/train.py grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID

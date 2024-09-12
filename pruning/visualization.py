@@ -2,8 +2,6 @@
 
 import pickle
 import subprocess
-import sys
-from pathlib import Path
 
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
@@ -13,12 +11,8 @@ import torch
 import torch.nn.functional as F
 from matplotlib import rc
 
-from factorization.models.softmax_model import Model, RMSNorm
-
-sys.path.append(str(Path("..").resolve()))
-
-
-SAVE_DIR = Path(".").resolve() / "results"
+from factorization.config import SAVE_DIR
+from factorization.models.softmax_model import Model, ModelConfig, RMSNorm
 
 rc("font", family="serif", size=8)
 usetex = not subprocess.run(["which", "pdflatex"]).returncode
@@ -38,7 +32,14 @@ sparsity_index = 5
 emb_dim = 2
 ffn_dim = 10
 vocab_size = 2
-model = Model(emb_dim=emb_dim, vocab_size=vocab_size, length=length, ffn_dim=ffn_dim)
+config = ModelConfig(
+    vocab_size=vocab_size,
+    emb_dim=emb_dim,
+    seq_length=length,
+    ffn_dim=ffn_dim,
+    ffn_bias=True,
+)
+model = Model(config)
 
 
 # %% Loading results
