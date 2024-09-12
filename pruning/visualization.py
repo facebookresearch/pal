@@ -29,12 +29,14 @@ rc("text", usetex=usetex)
 if usetex:
     rc("text.latex", preamble=r"\usepackage{times}")
 
+CONFIG_FILE = SAVE_DIR / "mock_config.jsonl"
+
 
 # Utils
 
 
 def recover_config(unique_id: str = None):
-    with open(SAVE_DIR / "config.jsonl", "r") as f:
+    with open(CONFIG_FILE, "r") as f:
         lines = f.readlines()
 
     for line in lines:
@@ -71,13 +73,14 @@ def plot_losses(unique_id):
 
 
 def plot_all_losses():
-    with open(SAVE_DIR / "config.jsonl", "r") as f:
+    with open(CONFIG_FILE, "r") as f:
         lines = f.readlines()
 
     for line in lines:
         config = json.loads(line)
         try:
             plot_losses(config["id"])
+            logger.info(f"Losses for configuration {config['id']} plotted.")
         except Exception as e:
             logger.warning(f"Error for configuration: {config}.")
             logger.warning(traceback.format_exc())
@@ -643,6 +646,7 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
     film_dir = SAVE_DIR / unique_id / "animation"
     film_dir.mkdir(exist_ok=True)
 
+    logger.info(f"Saving video ID {unique_id} from frame {start_frame} to frame {end_frame}.")
     ani = animation.FuncAnimation(fig, update, frames=range(start_frame, end_frame), repeat=False)
     ani.save(film_dir / f"part_{task_id}.mp4", writer="ffmpeg", fps=20)
 
@@ -653,12 +657,17 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
 def aggregate_video(unique_id):
     film_dir = SAVE_DIR / unique_id / "animation"
     files_to_aggregate = [str(file) for file in film_dir.iterdir() if file.is_file()]
+    logger.info(f"Aggregating {len(files_to_aggregate)} videos for ID {unique_id}.")
+    logger.debug(files_to_aggregate)
     clips = [mpy.VideoFileClip(file) for file in files_to_aggregate]
     concat_clip = mpy.concatenate_videoclips(clips)
-    concat_clip.write_videofile(str(SAVE_DIR / "full_visu.mp4"))
+    film_dir = SAVE_DIR / "film"
+    film_dir.mkdir(exist_ok=True)
+    concat_clip.write_videofile(str(film_dir / f"{unique_id}.mp4"))
 
 
 # CLI Wrapper
+
 
 if __name__ == "__main__":
     import fire
