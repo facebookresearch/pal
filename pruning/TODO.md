@@ -4,15 +4,13 @@
 - [ ] Find a config where the model succeeds with $p=3$.
 - [ ] Find a config where the model fails (should be the usual behaviors), and when the model collapse.
 - [ ] Understand the dynamics
-- [ ] Understand the loss spikes
+- [x] Understand the loss spikes -> this is due to crossing at zero of vectors that get normalized.
 - [ ] Run experiments that show to pertub the behaviors of the training and which confirm our understanding (ways to remove the loss spikes, SGD, ...).
 
 #### Vivien's TODO
-- [ ] Ecrire une training loop qui utilise le minibatch.
+- [ ] parallelize the visualization code
+- [ ] write some fine-tuning experiments
 - [ ] Write visualization when $p=3$ with triangles for the sequence associated to $y = 2$.
-- [ ] Check if I have debug MLP level lines frame 1500.
-- [ ] Plot some attention matrix - with the same color as the sentence color but with different intensity.
-- [ ] Show visualization to better understand what the MLP is.
 - [ ] Annotate the videos precisely (e.g., iteration 100: merging of seq that are prefix invariant, iteration 1000: loss spikes, ...)
 
 
