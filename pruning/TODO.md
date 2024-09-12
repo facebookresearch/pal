@@ -8,9 +8,11 @@
 - [ ] Run experiments that show to pertub the behaviors of the training and which confirm our understanding (ways to remove the loss spikes, SGD, ...).
 
 #### Vivien's TODO
-- [ ] Check for bugs in the MLP level lines.
-- [ ] Write dataloader with mini batch.
+- [ ] Ecrire une training loop qui utilise le minibatch.
 - [ ] Write visualization when $p=3$ with triangles for the sequence associated to $y = 2$.
+- [ ] Check if I have debug MLP level lines frame 1500.
+- [ ] Plot some attention matrix - with the same color as the sentence color but with different intensity.
+- [ ] Show visualization to better understand what the MLP is.
 - [ ] Annotate the videos precisely (e.g., iteration 100: merging of seq that are prefix invariant, iteration 1000: loss spikes, ...)
 
 

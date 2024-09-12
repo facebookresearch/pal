@@ -170,6 +170,7 @@ norm = RMSNorm()
 # data
 prefix = [
     [0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1],
     [0, 0, 0, 0, 1],
     [0, 0, 1, 0, 0],
     [0, 0, 0, 1, 1],
@@ -178,7 +179,6 @@ prefix = [
     [0, 1, 1, 0, 1],
     [0, 1, 1, 1, 1],
     [1, 1, 0, 1, 1],
-    [1, 1, 1, 1, 1],
 ]
 suffixes = [
     [0, 0, 0, 0, 0, 0, 0],
@@ -200,11 +200,11 @@ grid_mlp = torch.stack([X_mlp, Y_mlp], dim=-1).to(DEVICE).view(-1, 2)
 tmpx = torch.linspace(-2.5, 2.5, 50)
 tmpy = torch.linspace(-3.5, 2.5, 50)
 X_out, Y_out = torch.meshgrid(tmpx, tmpy)
-grid_mlp = torch.stack([X_out, Y_out], dim=-1).to(DEVICE).view(-1, 2)
+grid_out = torch.stack([X_out, Y_out], dim=-1).to(DEVICE).view(-1, 2)
 
 # Create Animation
 
-WIDTH = 15
+WIDTH = 20
 HEIGHT = 20
 
 fig, axes = plt.subplots(4, 3, figsize=(WIDTH, HEIGHT))
@@ -237,7 +237,7 @@ def update(frame):
         pos_seq_mlp = pos_seq_emb + model.mlp(norm(pos_seq_emb))
         neg_seq_mlp = neg_seq_emb + model.mlp(norm(neg_seq_emb))
         out_mlp = F.softmax(model.output(grid_mlp + model.mlp(norm(grid_mlp))), dim=-1)[..., 1].view(X_mlp.shape)
-        out_out = F.softmax(model.output(grid_mlp), dim=-1)[..., 1].view(X_out.shape)
+        out_out = F.softmax(model.output(grid_out), dim=-1)[..., 1].view(X_out.shape)
         pos_seq_prob = F.softmax(model.output(pos_seq_mlp), dim=-1)
         neg_seq_prob = F.softmax(model.output(neg_seq_mlp), dim=-1)
 
@@ -481,14 +481,14 @@ def update(frame):
 
 ani_length = 4000
 block_length = ani_length // 20
-for i in range(20):
+for i in range(12, 20):
     ani = animation.FuncAnimation(fig, update, frames=range(i * block_length, (i + 1) * block_length), repeat=False)
     ani.save(SAVE_DIR / f"full_{i}.mp4", writer="ffmpeg", fps=20)
 
 # %% Aggregate videos
 
 # List of .mp4 files to concatenate
-file_list = [str(SAVE_DIR / f"full_{i}.mp4") for i in range(18)]
+file_list = [str(SAVE_DIR / f"full_{i}.mp4") for i in range(12)]
 clips = [mpy.VideoFileClip(file) for file in file_list]
 concat_clip = mpy.concatenate_videoclips(clips)
 concat_clip.write_videofile(str(SAVE_DIR / "full_visu.mp4"))

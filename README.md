@@ -1,17 +1,12 @@
-## PAL: Predictive Analysis & Laws for Neural Networks
+# PAL: Predictive Analysis & Laws for Neural Networks
 
 Dismantling large language models parts to understand them better, with the hope to build better models.
 
-#### Requirements
-The code back-end is made with:
-```text
-numpy
-torch
-```
-The visualization are made with:
-```text
-matplotlib
-networkx
+## Installation
+```bash
+git clone https://github.com/facebookresearch/pal.git
+cd pal
+pip install -e .
 ```
 
 #### Research papers
