@@ -124,7 +124,7 @@ neg_marker = "s"
 
 def update(frame):
     for i in range(4):
-        for j in range(3):
+        for j in range(4):
             axes[i, j].clear()
 
     token_emb = weights[frame]["token_emb.weight"]
@@ -553,9 +553,8 @@ for i in range(0, 20):
 
 # %% Aggregate videos
 
-# List of .mp4 files to concatenate
-file_list = [str(SAVE_DIR / f"full_{i}.mp4") for i in range(20)]
-clips = [mpy.VideoFileClip(file) for file in file_list]
+files_to_aggregate = [str(SAVE_DIR / f"full_{i}.mp4") for i in range(20)]
+clips = [mpy.VideoFileClip(file) for file in files_to_aggregate]
 concat_clip = mpy.concatenate_videoclips(clips)
 concat_clip.write_videofile(str(SAVE_DIR / "full_visu.mp4"))
 
