@@ -29,7 +29,7 @@ rc("text", usetex=usetex)
 if usetex:
     rc("text.latex", preamble=r"\usepackage{times}")
 
-CONFIG_FILE = SAVE_DIR / "mock_config.jsonl"
+CONFIG_FILE = SAVE_DIR / "config.jsonl"
 
 
 # Utils
@@ -679,6 +679,3 @@ if __name__ == "__main__":
             "aggregate_video": aggregate_video,
         }
     )
-
-# %% Loading results
-unique_id = "44581400e13d49c282334b08b6060382"
