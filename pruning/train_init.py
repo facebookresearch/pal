@@ -50,6 +50,7 @@ class ExperimentConfig:
     batch_size: int = None
     nb_epochs: int = 4_000
     lr: float = 1e-2
+    lr_mlp: float = None
 
     # model
     emb_dim: int = 2
@@ -115,7 +116,6 @@ def run_from_config(config: ExperimentConfig):
     logger.info(f"Testing set: {test_loader.dataset}")
 
     # Model
-
     tmp = config.vocab_size
     config.vocab_size = config.nb_emb
     model = Model(config)
@@ -124,8 +124,19 @@ def run_from_config(config: ExperimentConfig):
     logger.info(f"Model with {sum(p.numel() for p in model.parameters())} parameters, running on {DEVICE}")
 
     # Training Loop
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+    if config.lr_mlp is not None:
+        my_list = ["mlp.fc1.weight", "mlp.fc1.bias", "mlp.fc2.weight", "mlp.fc2.bias"]
+        params = [p for n, p in model.named_parameters() if n in my_list]
+        base_params = [p for n, p in model.named_parameters() if n not in my_list]
+        optimizer = torch.optim.Adam(
+            [
+                {"params": base_params},
+                {"params": params, "lr": config.lr_mlp},
+            ],
+            lr=config.lr,
+        )
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
     losses = torch.zeros(config.nb_epochs)
     test_losses = torch.zeros(config.nb_epochs)
@@ -199,6 +210,7 @@ def run_experiments(
     batch_size: int = None,
     nb_epochs: int = 1_000,
     lr: float = 1e-2,
+    lr_mlp: float = None,
     emb_dim: int = 2,
     nb_emb: int = None,
     ffn_dim: int = 10,
@@ -217,6 +229,7 @@ def run_experiments(
         batch_size=batch_size,
         nb_epochs=nb_epochs,
         lr=lr,
+        lr_mlp=lr_mlp,
         emb_dim=emb_dim,
         nb_emb=nb_emb,
         ffn_dim=ffn_dim,
@@ -246,13 +259,14 @@ def run_grid(
         "batch_size": [None, 32],
         "nb_epochs": [10],  # [1_000],
         "lr": [1e-2],  # [1e-2, 1e-3, 1e-4],
+        "lr_mlp": [None, 1e-3],
         "emb_dim": [2],
         "nb_emb": [3],
         "ffn_dim": [8],  # [8, 16, 32, 128],
         "ffn_bias": [True],
         "ffn_dropout": [0],
         "activation": ["gelu"],
-        "init_mlp": [False, True],
+        "init_mlp": [False],
         "seed": range(2),
         "save_weights": [True],
     }
