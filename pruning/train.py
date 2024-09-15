@@ -25,6 +25,7 @@ logging.basicConfig(
 )
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+CONFIG_FILE = SAVE_DIR / "config.jsonl"
 
 
 # %% Utils
@@ -48,7 +49,6 @@ class ExperimentConfig:
     # optimization
     batch_size: int = None
     nb_epochs: int = 4_000
-    lambda_l1: float = 1e-4
     lr: float = 1e-2
 
     # model
@@ -89,7 +89,8 @@ def run_from_config(config: ExperimentConfig):
     unique_id = uuid.uuid4().hex
     save_dir = SAVE_DIR / unique_id
 
-    with open(SAVE_DIR / "config.jsonl", "a") as f:
+    SAVE_DIR.mkdir(exist_ok=True, parents=True)
+    with open(CONFIG_FILE, "a") as f:
         fcntl.flock(f, fcntl.LOCK_EX)
         json.dump(asdict(config) | {"id": unique_id}, f)
         f.write("\n")
@@ -149,11 +150,9 @@ def run_from_config(config: ExperimentConfig):
             # forward
             score = model(X, verbose=False)
             loss = F.cross_entropy(score, Y)
-            reg_loss = config.lambda_l1 * sum(p.abs().sum() for p in model.parameters())
 
             # backward
             loss.backward()
-            reg_loss.backward()
             optimizer.step()
 
         # record statistics
@@ -198,7 +197,6 @@ def run_experiments(
     nb_data: int = 2048,
     batch_size: int = None,
     nb_epochs: int = 1_000,
-    lambda_l1: float = 1e-4,
     lr: float = 1e-2,
     emb_dim: int = 2,
     nb_emb: int = None,
@@ -216,7 +214,6 @@ def run_experiments(
         nb_data=nb_data,
         batch_size=batch_size,
         nb_epochs=nb_epochs,
-        lambda_l1=lambda_l1,
         lr=lr,
         emb_dim=emb_dim,
         nb_emb=nb_emb,
@@ -245,16 +242,15 @@ def run_grid(
         "nb_data": [2048],
         "batch_size": [None, 32],
         "nb_epochs": [1_000],
-        "lambda_l1": [1e-4, 0],
-        "lr": [1e-2, 1e-3],
+        "lr": [1e-2, 1e-3, 1e-4],
         "emb_dim": [2],
         "nb_emb": [3],
-        "ffn_dim": [10],
+        "ffn_dim": [8, 16, 32, 128],
         "ffn_bias": [True],
         "ffn_dropout": [0],
         "activation": ["gelu"],
         "seed": range(100),
-        "save_weights": [False],
+        "save_weights": [True],
     }
     all_configs = product(*grid.values())
 

@@ -449,7 +449,7 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
         for i, (x, y) in enumerate(norm_neg_seq):
             t = axes[*ind].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
             t.set_alpha(0.3)
-        axes[*ind].set_title("Sequence Embeddings", fontsize=title_fontsize)
+        axes[*ind].set_title("Normed Sequence Embeddings", fontsize=title_fontsize)
 
         ind = (2, 1)
         axes[*ind].scatter([0], [0], c="k", marker="o", s=50)
@@ -581,7 +581,7 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
         axes[*ind].scatter(
             pos_seq_mlp[:, 0],
             pos_seq_mlp[:, 1],
-            c=np.arange(pos_seq_mlp.shape[0]),
+            c=np.arange(pos_seq_res.shape[0]),
             marker=pos_marker,
             cmap="tab20b",
             s=100,
@@ -589,7 +589,7 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
         axes[*ind].scatter(
             neg_seq_mlp[:, 0],
             neg_seq_mlp[:, 1],
-            c=np.arange(neg_seq_mlp.shape[0]),
+            c=np.arange(neg_seq_res.shape[0]),
             marker=neg_marker,
             cmap="tab20b",
             s=100,

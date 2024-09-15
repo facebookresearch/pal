@@ -8,6 +8,7 @@
 - [ ] Run experiments that show to pertub the behaviors of the training and which confirm our understanding (ways to remove the loss spikes, SGD, ...).
 
 #### Vivien's TODO
+- [ ] Code to iterate over the saved files and show results.
 - [ ] parallelize the visualization code
 - [ ] write some fine-tuning experiments
 - [ ] Write visualization when $p=3$ with triangles for the sequence associated to $y = 2$.

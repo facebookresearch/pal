@@ -9,17 +9,17 @@
 
 # Job specification
 #SBATCH --partition=scavenge
-#SBATCH --time=5:00:00
+#SBATCH --time=10:00:00
 #SBATCH --mem=64G
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
 #SBATCH --gpus-per-node=1
-#SBATCH --array=1-500
+#SBATCH --array=100-600
 
 
-# python /private/home/vivc/code/memory-theory/pruning/train.py grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID
+python /private/home/vivc/code/memory-theory/pruning/train.py grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID
 
-python /private/home/vivc/code/memory-theory/pruning/visualization.py get_animation --unique-id 44581400e13d49c282334b08b6060382 --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID
+# python /private/home/vivc/code/memory-theory/pruning/visualization.py get_animation --unique-id 44581400e13d49c282334b08b6060382 --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID
 
 # python pruning/visualization.py aggregate_video -unique-id 44581400e13d49c282334b08b6060382
