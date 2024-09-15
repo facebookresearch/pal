@@ -16,10 +16,8 @@ Remove dependency on MuP
 import math
 from dataclasses import dataclass
 
-import mup
 import torch.nn as nn
 import torch.nn.functional as F
-from mup import MuReadout, set_base_shapes
 
 # --------------------------------------------------------------------------------
 # Embedding Module
@@ -111,8 +109,6 @@ class TransformerConfig:
     ffn_bias: bool = False
     ffn_dropout: float = 0
 
-    use_mup: bool = False
-
     def __post_init__(self):
         if self.ffn_dim is None:
             self.ffn_dim = 4 * self.emb_dim
@@ -140,10 +136,7 @@ class TransformerFeedForward(nn.Module):
     def __init__(self, config: TransformerConfig):
         super().__init__()
         self.fc1 = nn.Linear(config.emb_dim, config.ffn_dim, bias=config.ffn_bias)
-        if config.use_mup:
-            self.fc2 = MuReadout(config.ffn_dim, config.emb_dim, bias=config.ffn_bias)
-        else:
-            self.fc2 = nn.Linear(config.ffn_dim, config.emb_dim, bias=config.ffn_bias)
+        self.fc2 = nn.Linear(config.ffn_dim, config.emb_dim, bias=config.ffn_bias)
         self.dropout = config.ffn_dropout
 
         # Parsing the activation function
@@ -198,7 +191,7 @@ class ModelConfig:
     ffn_bias: bool = False
     ffn_dropout: float = 0
 
-    use_mup: bool = False
+    init_mlp: bool = False
 
     def __post_init__(self):
         if self.ffn_dim is None:
@@ -213,6 +206,11 @@ class Model(nn.Module):
 
         self.softmax = SoftmaxLayer(config.emb_dim)
         self.mlp = TransformerFeedForward(config)
+
+        # Initialize MLP layers
+        if config.init_mlp:
+            _torch_init(self.mlp.fc1)
+            _torch_init(self.mlp.fc2)
 
         self.output = nn.Linear(config.emb_dim, config.vocab_size, bias=False)
         self.output.weight = self.token_emb.weight
@@ -237,28 +235,9 @@ class Model(nn.Module):
 # --------------------------------------------------------------------------------
 
 
-def _mup_init(layer):
-    mup.init.kaiming_uniform_(layer.weight, a=math.sqrt(5))
-    if layer.bias is not None:
-        fan_in, _ = mup.init._calculate_fan_in_and_fan_out(layer.weight)
-        bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
-        mup.init.uniform_(layer.bias, -bound, bound)
-
-
-def mup_mlp_init(model, delta=None):
-    set_base_shapes(model=model, base=model, delta=delta)
-    _mup_init(model.mlp.fc1)
-    _mup_init(model.mlp.fc2)
-
-
 def _torch_init(layer):
     nn.init.kaiming_uniform_(layer.weight, a=math.sqrt(5))
     if layer.bias is not None:
         fan_in, _ = nn.init._calculate_fan_in_and_fan_out(layer.weight)
         bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
         nn.init.uniform_(layer.bias, -bound, bound)
-
-
-def torch_mlp_init(model):
-    _torch_init(model.mlp.fc1)
-    _torch_init(model.mlp.fc2)
