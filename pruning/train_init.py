@@ -115,6 +115,11 @@ def run_from_config(config: ExperimentConfig):
     logger.info(f"Training set: {train_loader.dataset}")
     logger.info(f"Testing set: {test_loader.dataset}")
 
+    # Mutual exclusivity between lr per layers and MLP initialization
+    if config.lr_mlp is not None and config.init_mlp:
+        config.lr_mlp = None
+        logger.info(f"This configuration is not allowed. Moved back to lr_mlp=None")
+
     # Model
     tmp = config.vocab_size
     config.vocab_size = config.nb_emb
@@ -266,7 +271,7 @@ def run_grid(
         "ffn_bias": [True],
         "ffn_dropout": [0],
         "activation": ["gelu"],
-        "init_mlp": [False],
+        "init_mlp": [False, True],
         "seed": range(2),
         "save_weights": [True],
     }
