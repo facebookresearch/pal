@@ -187,8 +187,6 @@ class ModelConfig:
     ffn_bias: bool = False
     ffn_dropout: float = 0
 
-    init_mlp: bool = False
-
     def __post_init__(self):
         if self.ffn_dim is None:
             self.ffn_dim = 4 * self.emb_dim
@@ -202,11 +200,6 @@ class Model(nn.Module):
 
         self.softmax = SoftmaxLayer(config.emb_dim)
         self.mlp = TransformerFeedForward(config)
-
-        # Initialize MLP layers
-        if config.init_mlp:
-            _torch_init(self.mlp.fc1)
-            _torch_init(self.mlp.fc2)
 
         self.output = nn.Linear(config.emb_dim, config.vocab_size, bias=False)
         self.output.weight = self.token_emb.weight
@@ -237,3 +230,8 @@ def _torch_init(layer):
         fan_in, _ = nn.init._calculate_fan_in_and_fan_out(layer.weight)
         bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
         nn.init.uniform_(layer.bias, -bound, bound)
+
+
+def torch_init_mlp(model):
+    _torch_init(model.mlp.fc1)
+    _torch_init(model.mlp.fc2)
