@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 from factorization.config import SAVE_DIR
 from factorization.data.modular import DataloaderConfig, SMADataloader
-from factorization.models.softmax_model import Model
+from factorization.models.softmax_model import Model, torch_init_mlp
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -59,7 +59,7 @@ class ExperimentConfig:
     ffn_bias: bool = True
     ffn_dropout: float = 0
     activation: float = "gelu"
-    init_mlp: bool = False
+    mlp_speed: str = "default"
 
     # randomness
     seed: int = None
@@ -115,21 +115,26 @@ def run_from_config(config: ExperimentConfig):
     logger.info(f"Training set: {train_loader.dataset}")
     logger.info(f"Testing set: {test_loader.dataset}")
 
-    # Mutual exclusivity between lr per layers and MLP initialization
-    if config.lr_mlp is not None and config.init_mlp:
-        config.lr_mlp = None
-        logger.info(f"This configuration is not allowed. Moved back to lr_mlp=None")
-
     # Model
     tmp = config.vocab_size
     config.vocab_size = config.nb_emb
     model = Model(config)
+
+    # MLP initialization
+    assert config.mlp_speed in [
+        "default",
+        "weight_init",
+        "lrs",
+    ], "Value should be in [default, weight_init, lrs]."
+    if config.mlp_speed == "weight_init":
+        torch_init_mlp(model)
+
     config.vocab_size = tmp
     model.to(device=DEVICE)
     logger.info(f"Model with {sum(p.numel() for p in model.parameters())} parameters, running on {DEVICE}")
 
     # Training Loop
-    if config.lr_mlp is not None:
+    if (config.mlp_speed == "lrs") and (config.lr_mlp is not None):
         my_list = ["mlp.fc1.weight", "mlp.fc1.bias", "mlp.fc2.weight", "mlp.fc2.bias"]
         params = [p for n, p in model.named_parameters() if n in my_list]
         base_params = [p for n, p in model.named_parameters() if n not in my_list]
@@ -222,7 +227,7 @@ def run_experiments(
     ffn_bias: bool = True,
     ffn_dropout: float = 0,
     activation: float = "gelu",
-    init_mlp: bool = False,
+    mlp_speed: str = "default",
     seed: int = None,
     save_weights: bool = False,
 ):
@@ -241,7 +246,7 @@ def run_experiments(
         ffn_bias=ffn_bias,
         ffn_dropout=ffn_dropout,
         activation=activation,
-        init_mlp=init_mlp,
+        mlp_speed=mlp_speed,
         seed=seed,
         save_weights=save_weights,
     )
@@ -262,16 +267,16 @@ def run_grid(
         "sparsity_index": [5],
         "nb_data": [2048],
         "batch_size": [None],  # [None, 32],
-        "nb_epochs": [4000],  # [1_000],
+        "nb_epochs": [10],  # [1_000],
         "lr": [1e-2],  # [1e-2, 1e-3, 1e-4],
-        "lr_mlp": [None, 1e-3, 1e-4],
+        "lr_mlp": [1e-3],  # [None, 1e-3, 1e-4],
         "emb_dim": [2],  # [3],
         "nb_emb": [2],  # [3],
         "ffn_dim": [10],  # [8, 16, 32, 128],
         "ffn_bias": [False],
         "ffn_dropout": [0],
         "activation": ["gelu"],
-        "init_mlp": [False, True],
+        "mlp_speed": ["default", "weight_init", "lrs"],
         "seed": range(5),
         "save_weights": [True],
     }
