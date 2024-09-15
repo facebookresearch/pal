@@ -220,9 +220,6 @@ class Model(nn.Module):
         self.norm1 = RMSNorm()
         self.norm2 = RMSNorm()
 
-        if config.use_mup:
-            mup_mlp_init(self)
-
     def forward(self, x, verbose=False):
         out = self.token_emb(x) + self.pos_emb.weight
         out = self.softmax(self.norm1(out), verbose=verbose)
