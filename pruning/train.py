@@ -14,7 +14,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from factorization.config import SAVE_DIR
+from factorization.config import DEVICE, SAVE_DIR
 from factorization.data.modular import DataloaderConfig, SMADataloader
 from factorization.models.softmax_model import Model
 
@@ -22,9 +22,6 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler()]
 )
-
-DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-CONFIG_FILE = SAVE_DIR / "config.jsonl"
 
 
 # %% Utils

@@ -29,13 +29,13 @@ rc("text", usetex=usetex)
 if usetex:
     rc("text.latex", preamble=r"\usepackage{times}")
 
-CONFIG_FILE = SAVE_DIR / "all_config.jsonl"
+CONFIG_FILE = SAVE_DIR / "config.jsonl"
 
 
 # Utils
 
 
-def aggregate_configs():
+def aggregate_configs() -> None:
     """
     Aggregate all configuration files from the subdirectories of `SAVE_DIR`.
     """
@@ -107,7 +107,19 @@ def recover_config_from_aggregated(unique_id: str) -> dict[str, any]:
 # Accuracy and Loss
 
 
-def plot_losses(unique_id: int, file_format: str = "pdf"):
+def plot_losses(unique_id: int, file_format: str = "pdf", title: str = None) -> None:
+    """
+    Plot the losses for a given unique ID.
+
+    Parameters
+    ----------
+    unique_id
+        Unique identifier for the configuration file.
+    file_format
+        File format for the image.
+    title
+        Title for the plot.
+    """
     save_dir = SAVE_DIR / unique_id
     losses = pickle.load(open(save_dir / "losses.pkl", "rb"))
     test_losses = pickle.load(open(save_dir / "test_losses.pkl", "rb"))
@@ -118,26 +130,46 @@ def plot_losses(unique_id: int, file_format: str = "pdf"):
     axes[0].plot(losses, label="train")
     axes[0].plot(test_losses, label="test")
     axes[0].set_title("Loss")
+    axes[0].set_xlabel("Epochs")
     axes[0].legend()
     axes[1].plot(accs, label="train")
     axes[1].plot(test_accs, label="test")
     axes[1].set_title("Accuracy")
+    axes[1].set_xlabel("Epochs")
     axes[1].legend()
     axes[1].grid()
 
-    img_dir = IMAGE_DIR
-    img_dir.mkdir(exist_ok=True)
-    fig.savefig(img_dir / f"{unique_id}.{file_format}", bbox_inches="tight")
+    save_dir = IMAGE_DIR / "losses"
+    save_dir.mkdir(exist_ok=True, parents=True)
+    fig.suptitle(title if title else f"Losses for configuration {unique_id}")
+    fig.savefig(save_dir / f"{unique_id}.{file_format}", bbox_inches="tight")
 
 
-def plot_all_losses(file_format: str = "pdf"):
+def plot_all_losses(file_format: str = "pdf") -> None:
+    """
+    Plot the losses for all configurations in the aggregated config file.
+
+    Parameters
+    ----------
+    file_format
+        File format for the image.
+
+    Nota Bene
+    ---------
+    In order to annotate the plots with the quantities of interest, change the `title` variable in this function.
+    """
     with open(CONFIG_FILE, "r") as f:
         lines = f.readlines()
 
     for line in lines:
-        config = json.loads(line)
         try:
-            plot_losses(config["id"], file_format=file_format)
+            config = json.loads(line)
+        except json.JSONDecodeError:
+            logger.warning(f"Error reading configuration file {line}.")
+            continue
+        try:
+            title = f"bsz={config['batch_size']}, lr={config['lr']}, ffn_dim={config['ffn_dim']}, seed={config['seed']}"
+            plot_losses(config["id"], file_format=file_format, title=title)
             logger.info(f"Losses for configuration {config['id']} plotted.")
         except Exception as e:
             logger.warning(f"Error for configuration: {config}.")
@@ -146,18 +178,40 @@ def plot_all_losses(file_format: str = "pdf"):
             continue
 
 
-# Generate animation
+# Generate visualization
 
 
-def generate_animation(unique_id, num_tasks=1, task_id=1):
+def show_frame(unique_id: int, epoch: int):
+    """
+    Show a single frame for a given unique ID.
 
-    # configuration and saved computations
-
+    Parameters
+    ----------
+    unique_id
+        Unique identifier for the configuration file.
+    epoch
+        Epoch to show.
+    """
     config = recover_config(unique_id)
-    vocab_size = config["vocab_size"]
-    length = config["seq_length"]
-    sparsity_index = config["sparsity_index"]
-    ffn_dim = config["ffn_dim"]
+    assert config["save_weights"], f"Weights were not saved for ID {unique_id}."
+    assert epoch < config["nb_epochs"], f"Epoch {epoch} is greater than the number of epochs {config['nb_epochs']}."
+    visualization_backend(unique_id, start_frame=epoch, end_frame=None)
+
+
+def generate_animation(unique_id: int, num_tasks: int = 1, task_id: int = 1):
+    """
+    Generate an animation for a given unique ID.
+
+    Parameters
+    ----------
+    unique_id
+        Unique identifier for the configuration file.
+    num_tasks
+        Number of tasks to divide the animation into.
+    task_id
+        Current task ID.
+    """
+    config = recover_config(unique_id)
     assert config["save_weights"], f"Weights were not saved for ID {unique_id}."
 
     ani_length = config["nb_epochs"]
@@ -167,6 +221,37 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
     block_length = ani_length // num_tasks
     start_frame = (task_id - 1) * block_length
     end_frame = task_id * block_length
+
+    visualization_backend(unique_id, start_frame, end_frame)
+
+
+def visualization_backend(unique_id: int, start_frame: int, end_frame: int = None, file_format: str = None):
+    """
+    Backend for the visualization functions.
+
+    If `end_frame` is `None`, the function will save a single frame.
+    Otherwise, it will save a video from `start_frame` to `end_frame`.
+
+    Parameters
+    ----------
+    unique_id
+        Unique identifier for the configuration file.
+    start_frame
+        Frame to start from.
+    end_frame
+        Frame to end at.
+    file_format
+        File format for the image or video.
+    """
+
+    # configuration and saved computations
+
+    config = recover_config(unique_id)
+    vocab_size = config["vocab_size"]
+    length = config["seq_length"]
+    sparsity_index = config["sparsity_index"]
+    ffn_dim = config["ffn_dim"]
+    assert config["save_weights"], f"Weights were not saved for ID {unique_id}."
 
     save_dir = SAVE_DIR / unique_id
     weights = pickle.load(open(save_dir / "weights.pkl", "rb"))
@@ -285,7 +370,7 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
         for i, (x, y) in enumerate(token_emb):
             axes[*ind].text(x, y, i, fontsize=text_fontsize)
         axes[*ind].grid()
-        axes[*ind].set_title("Token Embeddings", fontsize=title_fontsize)
+        axes[*ind].set_title("Token Embeddings $E$", fontsize=title_fontsize)
 
         ind = (0, 1)
         axes[*ind].scatter(
@@ -307,7 +392,7 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
         for i, (x, y) in enumerate(pos_emb):
             axes[*ind].text(x, y, i, fontsize=text_fontsize)
         axes[*ind].grid()
-        axes[*ind].set_title("Position Embeddings", fontsize=title_fontsize)
+        axes[*ind].set_title("Position Embeddings $P$", fontsize=title_fontsize)
 
         ind = (0, 2)
         axes[*ind].scatter([0], [0], c="k", marker="o", s=50)
@@ -346,7 +431,7 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
         for i, (x, y) in enumerate(emb):
             axes[*ind].text(x, y, (i // 12, i % 12), fontsize=text_fontsize)
         axes[*ind].grid()
-        axes[*ind].set_title("Embeddings", fontsize=title_fontsize)
+        axes[*ind].set_title("Embeddings $E + P$", fontsize=title_fontsize)
 
         ind = (0, 3)
         axes[*ind].scatter(
@@ -385,7 +470,7 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
             axes[*ind].text(x, y, (i // 12, i % 12), fontsize=text_fontsize)
         axes[*ind].arrow(0, 0, query[0, 0], query[0, 1], head_width=0.1, head_length=0.1, fc="r", ec="r")
         axes[*ind].text(0, 0, "query", fontsize=text_fontsize + 2, color="r")
-        axes[*ind].set_title("Normed Embeddings", fontsize=title_fontsize)
+        axes[*ind].set_title(r"Normed Embeddings $Z(x,t) \propto E(x) + P(t)$", fontsize=title_fontsize)
 
         ind = (1, 0)
         axes[*ind].imshow(attn, cmap="Blues", vmin=0, vmax=0.2)
@@ -456,7 +541,7 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
             t = axes[*ind].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
             t.set_alpha(0.3)
         axes[*ind].grid()
-        axes[*ind].set_title("Sequence Embeddings", fontsize=title_fontsize)
+        axes[*ind].set_title(r"Sequence Embeddings $\xi$", fontsize=title_fontsize)
 
         ind = (1, 3)
         axes[*ind].contourf(X_mlp, Y_mlp, out_mlp, cmap="coolwarm", vmin=0, vmax=1)
@@ -482,7 +567,7 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
         for i, (x, y) in enumerate(neg_seq_emb):
             t = axes[*ind].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
             t.set_alpha(0.3)
-        axes[*ind].set_title("MLP level lines", fontsize=title_fontsize)
+        axes[*ind].set_title(r"Transform level lines: $\xi \to p(y=1|\xi)$", fontsize=title_fontsize)
 
         ind = (2, 0)
         axes[*ind].scatter(
@@ -507,7 +592,7 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
         for i, (x, y) in enumerate(norm_neg_seq):
             t = axes[*ind].text(x, y, neg_inputs[i].numpy().tolist(), fontsize=text_fontsize)
             t.set_alpha(0.3)
-        axes[*ind].set_title("Normed Sequence Embeddings", fontsize=title_fontsize)
+        axes[*ind].set_title(r"Normed Input: $\xi / \|\xi\|$", fontsize=title_fontsize)
 
         ind = (2, 1)
         axes[*ind].scatter([0], [0], c="k", marker="o", s=50)
@@ -540,7 +625,7 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
             alpha=0.1,
         )
         axes[*ind].grid()
-        axes[*ind].set_title("MLP activators", fontsize=title_fontsize)
+        axes[*ind].set_title("MLP receptors", fontsize=title_fontsize)
 
         ind = (2, 2)
         axes[*ind].scatter([0], [0], c="k", marker="o", s=50)
@@ -582,7 +667,7 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
             alpha=0.1,
         )
         axes[*ind].grid()
-        axes[*ind].set_title("MLP outputs", fontsize=title_fontsize)
+        axes[*ind].set_title("MLP assemblers", fontsize=title_fontsize)
 
         ind = (2, 3)
         axes[*ind].scatter(
@@ -701,18 +786,35 @@ def generate_animation(unique_id, num_tasks=1, task_id=1):
         axes[*ind].set_xlabel("Iterations")
         axes[*ind].set_ylabel("Accuracy")
 
-    film_dir = SAVE_DIR / unique_id / "animation"
-    film_dir.mkdir(exist_ok=True)
+    if end_frame is None:
+        update(start_frame)
+        save_dir = IMAGE_DIR / "frames"
+        save_dir.mkdir(exist_ok=True, parents=True)
+        if file_format is None:
+            file_format = "pdf"
+        fig.savefig(save_dir / f"{unique_id}_{start_frame}.{file_format}", bbox_inches="tight")
 
-    logger.info(f"Saving video ID {unique_id} from frame {start_frame} to frame {end_frame}.")
-    ani = animation.FuncAnimation(fig, update, frames=range(start_frame, end_frame), repeat=False)
-    ani.save(film_dir / f"part_{task_id}.mp4", writer="ffmpeg", fps=20)
+    else:
+        save_dir = IMAGE_DIR / "videos" / "parts" / str(unique_id)
+        save_dir.mkdir(exist_ok=True, parents=True)
+        logger.info(f"Saving video ID {unique_id} from frame {start_frame} to frame {end_frame}.")
+        ani = animation.FuncAnimation(fig, update, frames=range(start_frame, end_frame), repeat=False)
+        if file_format is None:
+            file_format = "mp4"
+        if file_format == "gif":
+            writer = "imagemagick"
+        else:
+            writer = "ffmpeg"
+        ani.save(save_dir / f"{start_frame}_{end_frame}.{file_format}", writer=writer, fps=20)
 
 
 # Aggregate videos
 
 
 def aggregate_video(unique_id):
+    """
+    TODO: sort files by name.
+    """
     film_dir = SAVE_DIR / unique_id / "animation"
     files_to_aggregate = [str(file) for file in film_dir.iterdir() if file.is_file()]
     logger.info(f"Aggregating {len(files_to_aggregate)} videos for ID {unique_id}.")
@@ -735,6 +837,9 @@ if __name__ == "__main__":
             "config": aggregate_configs,
             "losses": plot_all_losses,
             "animation": generate_animation,
+            "frame": show_frame,
             "aggregate": aggregate_video,
         }
     )
+
+# %%
