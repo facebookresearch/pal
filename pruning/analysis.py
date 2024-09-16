@@ -184,7 +184,7 @@ def plot_all_losses(file_format: str = "pdf") -> None:
 # Generate visualization
 
 
-def show_frame(unique_id: int, epoch: int):
+def show_frame(unique_id: int, epoch: int, file_format: str = None):
     """
     Show a single frame for a given unique ID.
 
@@ -194,11 +194,13 @@ def show_frame(unique_id: int, epoch: int):
         Unique identifier for the configuration file.
     epoch
         Epoch to show.
+    file_format
+        File format for the image.
     """
     config = recover_config(unique_id)
     assert config["save_weights"], f"Weights were not saved for ID {unique_id}."
     assert epoch < config["nb_epochs"], f"Epoch {epoch} is greater than the number of epochs {config['nb_epochs']}."
-    visualization_backend(unique_id, start_frame=epoch, end_frame=None)
+    visualization_backend(unique_id, start_frame=epoch, end_frame=None, file_format=file_format)
 
 
 def generate_animation(unique_id: int, num_tasks: int = 1, task_id: int = 1):
