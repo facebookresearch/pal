@@ -16,7 +16,7 @@ import torch
 
 # Device
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-ROOT_DIR = Path(__file__).parents[2]
+ROOT_DIR = Path(__file__).parents[2].resolve()
 
 
 # Priority to user config

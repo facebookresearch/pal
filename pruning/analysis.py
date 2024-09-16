@@ -14,7 +14,7 @@ import torch
 import torch.nn.functional as F
 from matplotlib import rc
 
-from factorization.config import SAVE_DIR
+from factorization.config import IMAGE_DIR, SAVE_DIR
 from factorization.models.softmax_model import Model, ModelConfig, RMSNorm
 
 logger = logging.getLogger(__name__)
@@ -29,16 +29,74 @@ rc("text", usetex=usetex)
 if usetex:
     rc("text.latex", preamble=r"\usepackage{times}")
 
-CONFIG_FILE = SAVE_DIR / "config.jsonl"
+CONFIG_FILE = SAVE_DIR / "all_config.jsonl"
 
 
 # Utils
 
 
-def recover_config(unique_id: str = None):
+def aggregate_configs():
+    """
+    Aggregate all configuration files from the subdirectories of `SAVE_DIR`.
+    """
+    all_configs = []
+    for sub_dir in SAVE_DIR.iterdir():
+        if sub_dir.is_dir():
+            config_file = sub_dir / "config.json"
+            try:
+                with open(config_file, "r") as f:
+                    config = json.load(f)
+                all_configs.append(config)
+            except Exception as e:
+                logger.warning(f"Error reading configuration file {config_file}.")
+                logger.warning(e)
+                continue
+
+    with open(CONFIG_FILE, "w") as f:
+        for config in all_configs:
+            json.dump(config, f)
+            f.write("\n")
+
+
+def recover_config(unique_id: str = None) -> dict[str, any]:
+    """
+    Recover the configuration file for a given unique ID.
+
+    Parameters
+    ----------
+    unique_id
+        Unique identifier for the configuration file.
+
+    Returns
+    -------
+    config
+        Configuration dictionary.
+    """
+    try:
+        config_file = SAVE_DIR / str(unique_id) / "config.json"
+        with open(config_file, "r") as f:
+            config = json.load(f)
+    except FileNotFoundError:
+        config = recover_config_from_aggregated(unique_id)
+    return config
+
+
+def recover_config_from_aggregated(unique_id: str) -> dict[str, any]:
+    """
+    Recover the configuration file for a given unique ID from the aggregated file.
+
+    Parameters
+    ----------
+    unique_id
+        Unique identifier for the configuration file.
+
+    Returns
+    -------
+    config
+        Configuration dictionary.
+    """
     with open(CONFIG_FILE, "r") as f:
         lines = f.readlines()
-
     for line in lines:
         config = json.loads(line)
         if config["id"] == unique_id:
@@ -46,14 +104,10 @@ def recover_config(unique_id: str = None):
     return config
 
 
-def aggregate_configs():
-    pass
-
-
 # Accuracy and Loss
 
 
-def plot_losses(unique_id):
+def plot_losses(unique_id: int, file_format: str = "pdf"):
     save_dir = SAVE_DIR / unique_id
     losses = pickle.load(open(save_dir / "losses.pkl", "rb"))
     test_losses = pickle.load(open(save_dir / "test_losses.pkl", "rb"))
@@ -71,19 +125,19 @@ def plot_losses(unique_id):
     axes[1].legend()
     axes[1].grid()
 
-    img_dir = SAVE_DIR / "images"
+    img_dir = IMAGE_DIR
     img_dir.mkdir(exist_ok=True)
-    fig.savefig(img_dir / f"{unique_id}.pdf", bbox_inches="tight")
+    fig.savefig(img_dir / f"{unique_id}.{file_format}", bbox_inches="tight")
 
 
-def plot_all_losses():
+def plot_all_losses(file_format: str = "pdf"):
     with open(CONFIG_FILE, "r") as f:
         lines = f.readlines()
 
     for line in lines:
         config = json.loads(line)
         try:
-            plot_losses(config["id"])
+            plot_losses(config["id"], file_format=file_format)
             logger.info(f"Losses for configuration {config['id']} plotted.")
         except Exception as e:
             logger.warning(f"Error for configuration: {config}.")
@@ -678,8 +732,9 @@ if __name__ == "__main__":
 
     fire.Fire(
         {
-            "get_losses": plot_all_losses,
-            "get_animation": generate_animation,
-            "aggregate_video": aggregate_video,
+            "config": aggregate_configs,
+            "losses": plot_all_losses,
+            "animation": generate_animation,
+            "aggregate": aggregate_video,
         }
     )
