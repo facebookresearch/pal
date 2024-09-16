@@ -98,7 +98,10 @@ def recover_config_from_aggregated(unique_id: str) -> dict[str, any]:
     with open(CONFIG_FILE, "r") as f:
         lines = f.readlines()
     for line in lines:
-        config = json.loads(line)
+        try:
+            config = json.loads(line)
+        except json.JSONDecodeError:
+            continue
         if config["id"] == unique_id:
             break
     return config
@@ -329,7 +332,7 @@ def visualization_backend(unique_id: int, start_frame: int, end_frame: int = Non
             for j in range(4):
                 axes[i, j].clear()
 
-        token_emb = weights[frame]["token_emb.weight"]
+        token_emb = weights[frame]["token_emb.weight"][:vocab_size]
         pos_emb = weights[frame]["pos_emb.weight"]
         emb = (token_emb.unsqueeze(1) + pos_emb).reshape(-1, 2)
         norm_emb = norm(emb)
@@ -356,8 +359,8 @@ def visualization_backend(unique_id: int, start_frame: int, end_frame: int = Non
 
             out_mlp = F.softmax(model.output(grid_mlp + model.mlp(norm(grid_mlp))), dim=-1)[..., 1].view(X_mlp.shape)
             out_out = F.softmax(model.output(grid_out), dim=-1)[..., 1].view(X_out.shape)
-            pos_seq_prob = F.softmax(model.output(pos_seq_res), dim=-1)
-            neg_seq_prob = F.softmax(model.output(neg_seq_res), dim=-1)
+            pos_seq_prob = F.softmax(model.output(pos_seq_res), dim=-1)[:, :vocab_size]
+            neg_seq_prob = F.softmax(model.output(neg_seq_res), dim=-1)[:, :vocab_size]
 
         ind = (0, 0)
         axes[*ind].scatter(
