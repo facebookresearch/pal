@@ -1,7 +1,6 @@
 # %% Imports
 
 import copy
-import fcntl
 import json
 import logging
 import pickle
@@ -31,7 +30,19 @@ CONFIG_FILE = SAVE_DIR / "config.jsonl"
 # %% Utils
 
 
-def copy_weights(model):
+def copy_weights(model: Model) -> dict[str, torch.Tensor]:
+    """
+    Return a copy of the model's state_dict
+
+    Parameters
+    ----------
+    model:
+        The model whose state_dict will be copied.
+
+    Returns
+    -------
+    A copy of the model's state_dict.
+    """
     if model.output.weight.device == torch.device("cpu"):
         return {k: copy.deepcopy(v) for k, v in model.state_dict().items()}
     else:
@@ -50,6 +61,10 @@ class ExperimentConfig:
     batch_size: int = None
     nb_epochs: int = 4_000
     lr: float = 1e-2
+
+    # adaptive updates
+    adapt_method: str = None
+    mlp_lr: float = None
 
     # model
     emb_dim: int = 2
@@ -74,11 +89,24 @@ class ExperimentConfig:
         if self.ffn_dim is None:
             self.ffn_dim = 4 * self.emb_dim
 
+        if self.adapt_method not in [None, "init", "lr"]:
+            raise ValueError(f"adapt_method should be 'init', 'lr' or None, got {self.adapt_method}")
+        if self.adapt_method == "lr" and self.mlp_lr is None:
+            raise ValueError("'mlp_lr' is not specified")
+
 
 # %% Main function
 
 
 def run_from_config(config: ExperimentConfig):
+    """
+    Run the training loop using the provided configuration.
+
+    Parameters
+    ----------
+    config:
+        The configuration object containing the experiment parameters.
+    """
     if config.seed is not None:
         RNG = np.random.default_rng(config.seed)
         np.random.seed(seed=config.seed)
@@ -89,12 +117,9 @@ def run_from_config(config: ExperimentConfig):
     unique_id = uuid.uuid4().hex
     save_dir = SAVE_DIR / unique_id
 
-    SAVE_DIR.mkdir(exist_ok=True, parents=True)
-    with open(CONFIG_FILE, "a") as f:
-        fcntl.flock(f, fcntl.LOCK_EX)
+    save_dir.mkdir(exist_ok=True, parents=True)
+    with open(save_dir / "config.json", "w") as f:
         json.dump(asdict(config) | {"id": unique_id}, f)
-        f.write("\n")
-        fcntl.flock(f, fcntl.LOCK_UN)
 
     # Data
 
@@ -122,9 +147,22 @@ def run_from_config(config: ExperimentConfig):
     model.to(device=DEVICE)
     logger.info(f"Model with {sum(p.numel() for p in model.parameters())} parameters, running on {DEVICE}")
 
-    # Training Loop
+    # Adapative computation
+    if config.adapt_method == "init":
+        model.mlp.mup_init()
+    if config.adapt_method == "lr":
+        mlp_params = [f"mlp.{n}" for n, p in model.mlp.named_parameters()]
+        optimizer = torch.optim.Adam(
+            [
+                {"params": [p for n, p in model.named_parameters() if n not in mlp_params]},
+                {"params": model.mlp.parameters(), "lr": config.mlp_lr},
+            ],
+            lr=config.lr,
+        )
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+    # Training Loop
 
     losses = torch.zeros(config.nb_epochs)
     test_losses = torch.zeros(config.nb_epochs)
@@ -198,6 +236,8 @@ def run_experiments(
     batch_size: int = None,
     nb_epochs: int = 1_000,
     lr: float = 1e-2,
+    adapt_method: str = None,
+    mlp_lr: float = None,
     emb_dim: int = 2,
     nb_emb: int = None,
     ffn_dim: int = 10,
@@ -206,7 +246,48 @@ def run_experiments(
     activation: float = "gelu",
     seed: int = None,
     save_weights: bool = False,
-):
+) -> None:
+    """
+    Run experiments with the given configuration.
+
+    Parameters
+    ----------
+    vocab_size:
+        The size of the vocabulary.
+    seq_length:
+        The length of the sequence.
+    sparsity_index:
+        The sparsity index.
+    nb_data:
+        The number of data.
+    batch_size:
+        The batch size.
+    nb_epochs:
+        The number of epochs.
+    lr:
+        The learning rate.
+    adapt_method:
+        The adaptation method.
+    mlp_lr:
+        The MLP learning rate.
+    emb_dim:
+        The embedding dimension.
+    nb_emb:
+        The number of embeddings.
+    ffn_dim:
+        The dimension of the feed-forward network.
+    ffn_bias:
+        Whether to include bias in the feed-forward network.
+    ffn_dropout:
+        The dropout rate for the feed-forward network.
+    activation:
+        The activation function.
+    seed:
+        The random seed.
+    save_weights:
+        Whether to save the weights.
+    """
+
     config = ExperimentConfig(
         vocab_size=vocab_size,
         seq_length=seq_length,
@@ -215,6 +296,8 @@ def run_experiments(
         batch_size=batch_size,
         nb_epochs=nb_epochs,
         lr=lr,
+        adapt_method=adapt_method,
+        mlp_lr=mlp_lr,
         emb_dim=emb_dim,
         nb_emb=nb_emb,
         ffn_dim=ffn_dim,
@@ -234,7 +317,17 @@ def run_experiments(
 def run_grid(
     num_tasks=1,
     task_id=1,
-):
+) -> None:
+    """
+    Run a grid of configurations for training.
+
+    Parameters
+    ----------
+    num_tasks:
+        The total number of tasks to run concurrently.
+    task_id:
+        The ID of the current task.
+    """
     grid = {
         "vocab_size": [2],
         "seq_length": [12],
@@ -242,7 +335,9 @@ def run_grid(
         "nb_data": [2048],
         "batch_size": [None, 32],
         "nb_epochs": [1_000],
-        "lr": [1e-2, 1e-3, 1e-4],
+        "lr": [1e-2],
+        "mlp_adpat": [None, "init", "lr"],
+        "mlp_lr": [1e-3],
         "emb_dim": [2],
         "nb_emb": [3],
         "ffn_dim": [8, 16, 32, 128],

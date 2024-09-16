@@ -46,6 +46,10 @@ def recover_config(unique_id: str = None):
     return config
 
 
+def aggregate_configs():
+    pass
+
+
 # Accuracy and Loss
 
 
