@@ -10,6 +10,9 @@ Understand MuP in our case.
 - [ ] Run experiments that show to pertub the behaviors of the training and which confirm our understanding (ways to remove the loss spikes, SGD, ...).
 
 #### Vivien's TODO
+- Settle on a base configuration to make sweep experiments simple.
+- Check consistency of ffn_dim sweep when keeping the same seed.
+
 Code Amelioration
     - [ ] Write subfunctions for the visualization to be able to pick the ones we want. Load a json config file for the visualization.
 

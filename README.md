@@ -16,8 +16,8 @@ pip install -e .
 
 - Vivien Cabannes, Berfin Simsek, Alberto Bietti. *Learning Associative Memories with Gradient Descent* in International Conference on Machine Learning (ICML), 2024. The codebase is in the folder `projects/gradient_descent`.
 
-- In preparation. Codebase in `pruning`.
-Show that learning appear by pruning circuits.
+- In preparation. Codebase in `visualization`.
+Visualization of the training dynamics of a model with embeddings in dimension two.
 
 - In preparation. Codebase in `factorization`.
 Empirical study of memorization capacity of MLPs and their abilities to leverage hidden factorization.
