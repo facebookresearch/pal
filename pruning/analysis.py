@@ -19,9 +19,8 @@ import traceback
 
 import matplotlib.pyplot as plt
 from matplotlib import rc
-from utils import CONFIG_FILE
 
-from factorization.config import IMAGE_DIR, SAVE_DIR
+from factorization.config import CONFIG_FILE, IMAGE_DIR, SAVE_DIR
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(

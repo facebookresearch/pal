@@ -1,12 +1,9 @@
 import json
 import logging
 
-from factorization.config import SAVE_DIR
+from factorization.config import CONFIG_FILE, SAVE_DIR
 
 logger = logging.getLogger(__name__)
-
-
-CONFIG_FILE = SAVE_DIR / "config.jsonl"
 
 
 def aggregate_configs() -> None:
