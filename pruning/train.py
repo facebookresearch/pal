@@ -1,3 +1,14 @@
+"""
+Training scripts
+
+License
+-------
+This source code is licensed under the CC license found in the LICENSE file
+in the root directory of this source tree.
+
+@ 2024, Meta
+"""
+
 # %% Imports
 
 import copy
@@ -58,10 +69,7 @@ class ExperimentConfig:
     batch_size: int = None
     nb_epochs: int = 4_000
     lr: float = 1e-2
-
-    # adaptive updates
-    adapt_method: str = None
-    mlp_lr: float = None
+    mlp_lr_discount: float = None
 
     # model
     emb_dim: int = 2
@@ -85,11 +93,6 @@ class ExperimentConfig:
             self.nb_emb = self.vocab_size
         if self.ffn_dim is None:
             self.ffn_dim = 4 * self.emb_dim
-
-        if self.adapt_method not in [None, "init", "lr"]:
-            raise ValueError(f"adapt_method should be 'init', 'lr' or None, got {self.adapt_method}")
-        if self.adapt_method == "lr" and self.mlp_lr is None:
-            raise ValueError("'mlp_lr' is not specified")
 
 
 # %% Main function
@@ -144,20 +147,17 @@ def run_from_config(config: ExperimentConfig):
     model.to(device=DEVICE)
     logger.info(f"Model with {sum(p.numel() for p in model.parameters())} parameters, running on {DEVICE}")
 
-    # Adapative computation
-    if config.adapt_method == "init":
-        model.mlp.mup_init()
-    if config.adapt_method == "lr":
+    # Adapative updates
+
+    if config.mlp_lr_discount is not None:
         mlp_params = [f"mlp.{n}" for n, p in model.mlp.named_parameters()]
-        optimizer = torch.optim.Adam(
-            [
-                {"params": [p for n, p in model.named_parameters() if n not in mlp_params]},
-                {"params": model.mlp.parameters(), "lr": config.mlp_lr},
-            ],
-            lr=config.lr,
-        )
+        parameters = [
+            {"params": [p for n, p in model.named_parameters() if n not in mlp_params]},
+            {"params": model.mlp.parameters(), "lr": config.lr * config.mlp_lr_discount},
+        ]
     else:
-        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+        parameters = model.parameters()
+    optimizer = torch.optim.Adam(parameters, lr=config.lr)
 
     # Training Loop
 
@@ -213,6 +213,7 @@ def run_from_config(config: ExperimentConfig):
 
     # Saving results
 
+    logger.info("Saving results.")
     save_dir.mkdir(exist_ok=True, parents=True)
     pickle.dump(losses, open(save_dir / "losses.pkl", "wb"))
     pickle.dump(test_losses, open(save_dir / "test_losses.pkl", "wb"))
@@ -233,8 +234,7 @@ def run_experiments(
     batch_size: int = None,
     nb_epochs: int = 1_000,
     lr: float = 1e-2,
-    adapt_method: str = None,
-    mlp_lr: float = None,
+    mlp_lr_discount: float = None,
     emb_dim: int = 2,
     nb_emb: int = None,
     ffn_dim: int = 10,
@@ -263,10 +263,8 @@ def run_experiments(
         The number of epochs.
     lr:
         The learning rate.
-    adapt_method:
-        The adaptation method.
-    mlp_lr:
-        The MLP learning rate.
+    mlp_lr_discount:
+        Discount factor for the MLP learning rate.
     emb_dim:
         The embedding dimension.
     nb_emb:
@@ -293,8 +291,7 @@ def run_experiments(
         batch_size=batch_size,
         nb_epochs=nb_epochs,
         lr=lr,
-        adapt_method=adapt_method,
-        mlp_lr=mlp_lr,
+        mlp_lr_discount=mlp_lr_discount,
         emb_dim=emb_dim,
         nb_emb=nb_emb,
         ffn_dim=ffn_dim,
@@ -332,9 +329,8 @@ def run_grid(
         "nb_data": [2048],
         "batch_size": [None, 32],
         "nb_epochs": [1_000],
-        "lr": [1e-2],
-        "adapt_method": ["init", "lr"],
-        "mlp_lr": [1e-3],
+        "lr": [1e-2, 1e-3, 1e-4],
+        "mlp_lr_discount": [None, 3, 10],
         "emb_dim": [2],
         "nb_emb": [3],
         "ffn_dim": [8, 16, 32, 128],
@@ -342,7 +338,7 @@ def run_grid(
         "ffn_dropout": [0],
         "activation": ["gelu"],
         "seed": range(100),
-        "save_weights": [True],
+        "save_weights": [False],
     }
     all_configs = product(*grid.values())
 

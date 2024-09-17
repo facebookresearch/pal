@@ -1,6 +1,8 @@
 
 ## TODO visualization
 
+Understand MuP in our case.
+
 - [ ] Find a config where the model succeeds with $p=3$.
 - [ ] Find a config where the model fails (should be the usual behaviors), and when the model collapse.
 - [ ] Understand the dynamics
@@ -8,6 +10,8 @@
 - [ ] Run experiments that show to pertub the behaviors of the training and which confirm our understanding (ways to remove the loss spikes, SGD, ...).
 
 #### Vivien's TODO
+Clean the train
+
 Code Amelioration
     - [ ] Write subfunctions for the visualization to be able to pick the ones we want. Load a json config file for the visualization.
 

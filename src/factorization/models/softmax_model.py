@@ -148,18 +148,6 @@ class TransformerFeedForward(nn.Module):
         out = F.dropout(out, p=self.dropout, training=self.training)
         return out
 
-    def mup_init(self):
-        self._mup_init(self.fc1)
-        self._mup_init(self.fc2)
-
-    @staticmethod
-    def _mup_init(layer):
-        nn.init.kaiming_uniform_(layer.weight, a=math.sqrt(5))
-        if layer.bias is not None:
-            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(layer.weight)
-            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
-            nn.init.uniform_(layer.bias, -bound, bound)
-
 
 # -------------------------------------------------------------------------------
 # Normalization Module
