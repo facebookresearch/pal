@@ -167,7 +167,7 @@ class TransformerFeedForward(nn.Module):
         b1 *= bound
 
         bound = 1 / math.sqrt(ffn_dim)
-        w2 = params[:, emb_dim : 2 * emb_dim]
+        w2 = params[:, emb_dim : 2 * emb_dim].T
         w2 *= bound
         b2 = params[:emb_dim, 2 * emb_dim + 1]
         b2 *= bound
