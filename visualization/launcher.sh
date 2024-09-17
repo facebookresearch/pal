@@ -2,11 +2,11 @@
 
 # In order to remove your change from git history, you can use the following command:
 # ```shell
-# $ git update-index --skip-worktree user_config.ini
+# $ git update-index --skip-worktree visualization/launcher.sh
 # ```
 # To track back the file, you can use the following command:
 # ```shell
-# $ git update-index --no-skip-worktree user_config.ini
+# $ git update-index --no-skip-worktree visualization/launcher.sh
 # ```
 # To list all files that are marked as skip-worktree, you can use the following command:
 # ```shell
