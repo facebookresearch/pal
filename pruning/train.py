@@ -30,9 +30,6 @@ from factorization.data.modular import DataloaderConfig, SMADataloader
 from factorization.models.softmax_model import Model
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler()]
-)
 
 
 # %% Utils
@@ -153,7 +150,7 @@ def run_from_config(config: ExperimentConfig):
         mlp_params = [f"mlp.{n}" for n, p in model.mlp.named_parameters()]
         parameters = [
             {"params": [p for n, p in model.named_parameters() if n not in mlp_params]},
-            {"params": model.mlp.parameters(), "lr": config.lr * config.mlp_lr_discount},
+            {"params": model.mlp.parameters(), "lr": config.lr / config.mlp_lr_discount},
         ]
     else:
         parameters = model.parameters()
@@ -350,9 +347,8 @@ def run_grid(
             continue
 
         # setup configuration
-        kwargs = {"interactive": False}
-        for k, v in zip(grid.keys(), values):
-            kwargs[k] = v
+        kwargs = dict(zip(grid.keys(), values))
+        kwargs["interactive"] = False
         config = ExperimentConfig(**kwargs)
 
         logger.info(f"{config=}")
@@ -370,6 +366,10 @@ def run_grid(
 
 if __name__ == "__main__":
     import fire
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler()]
+    )
 
     fire.Fire(
         {

@@ -28,9 +28,6 @@ from factorization.config import IMAGE_DIR, SAVE_DIR
 from factorization.models.softmax_model import Model, ModelConfig, RMSNorm
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler()]
-)
 
 rc("font", family="serif", size=8)
 usetex = not subprocess.run(["which", "pdflatex"]).returncode
@@ -766,6 +763,10 @@ def aggregate_video(unique_id: int):
 
 if __name__ == "__main__":
     import fire
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler()]
+    )
 
     fire.Fire(
         {

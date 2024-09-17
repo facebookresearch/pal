@@ -84,4 +84,8 @@ def recover_config_from_aggregated(unique_id: str) -> dict[str, any]:
 if __name__ == "__main__":
     import fire
 
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler()]
+    )
+
     fire.Fire(aggregate_configs)

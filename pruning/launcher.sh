@@ -15,7 +15,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
 #SBATCH --gpus-per-node=1
-#SBATCH --array=1-1600
+#SBATCH --array=1-2400
 
 
 python /private/home/vivc/code/memory-theory/pruning/train.py grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID
