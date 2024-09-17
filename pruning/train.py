@@ -333,7 +333,7 @@ def run_grid(
         "batch_size": [None, 32],
         "nb_epochs": [1_000],
         "lr": [1e-2],
-        "adapt_method": [None, "init", "lr"],
+        "adapt_method": ["init", "lr"],
         "mlp_lr": [1e-3],
         "emb_dim": [2],
         "nb_emb": [3],

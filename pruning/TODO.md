@@ -8,12 +8,17 @@
 - [ ] Run experiments that show to pertub the behaviors of the training and which confirm our understanding (ways to remove the loss spikes, SGD, ...).
 
 #### Vivien's TODO
-- [ ] Show png file of the training dynamics for the different expes.
-- [ ] Create animation for well-chosen runs, and annotate them precisely.
-- [ ] Isolate the frame that allows us to analyse the loss spikes.
+Code Amelioration
+    - [ ] Write subfunctions for the visualization to be able to pick the ones we want. Load a json config file for the visualization.
 
-- [ ] write some fine-tuning experiments.
-- [ ] Write visualization when $p=3$ with triangles for the sequence associated to $y = 2$.
+Legal deadline:
+    - [ ] Analysis about what we want to show.
+    - [ ] Create animation for well-chosen runs, and annotate them precisely.
+    - [ ] Isolate the frame that allows us to analyse the loss spikes.
+
+- Fine-tuning
+    - [ ] write some fine-tuning experiments.
+    - [ ] Write visualization when $p=3$ with triangles for the sequence associated to $y = 2$.
 
 ## Visualize memorizaton vs. algorithm
 - In factorization.ipynb: 
