@@ -96,21 +96,28 @@ def load_experimental_results(
         if skip:
             continue
 
-        all_data.append(
-            pd.DataFrame(
-                torch.stack(
-                    [
-                        np.load(SAVE_DIR / experience.id / "accs.pkl", allow_pickle=True),
-                        np.load(SAVE_DIR / experience.id / "test_accs.pkl", allow_pickle=True),
-                        np.load(SAVE_DIR / experience.id / "losses.pkl", allow_pickle=True),
-                        np.load(SAVE_DIR / experience.id / "test_losses.pkl", allow_pickle=True),
-                    ]
-                ).T,
-                columns=["acc", "test_acc", "loss", "test_loss"],
-            ).assign(
-                **{key: getattr(experience, key) for key in decorators} | {"epoch": range(1, experience.nb_epochs + 1)}
+        try:
+            all_data.append(
+                pd.DataFrame(
+                    torch.stack(
+                        [
+                            np.load(SAVE_DIR / experience.id / "accs.pkl", allow_pickle=True),
+                            np.load(SAVE_DIR / experience.id / "test_accs.pkl", allow_pickle=True),
+                            np.load(SAVE_DIR / experience.id / "losses.pkl", allow_pickle=True),
+                            np.load(SAVE_DIR / experience.id / "test_losses.pkl", allow_pickle=True),
+                        ]
+                    ).T,
+                    columns=["acc", "test_acc", "loss", "test_loss"],
+                ).assign(
+                    **{key: getattr(experience, key) for key in decorators}
+                    | {"epoch": range(1, experience.nb_epochs + 1)}
+                )
             )
-        )
+        except FileNotFoundError as e:
+            logger.warning(f"Error reading {experience}.")
+            logger.warning(e)
+            continue
+
     return pd.concat(all_data, ignore_index=True)
 
 

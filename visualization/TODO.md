@@ -1,19 +1,17 @@
 
 ## TODO visualization
 
-Understand MuP in our case.
-
-- [ ] Find a config where the model succeeds with $p=3$.
-- [ ] Find a config where the model fails (should be the usual behaviors), and when the model collapse.
-- [ ] Understand the dynamics
-- [x] Understand the loss spikes -> this is due to crossing at zero of vectors that get normalized.
-- [ ] Run experiments that show to pertub the behaviors of the training and which confirm our understanding (ways to remove the loss spikes, SGD, ...).
+- [ ] Understand reasons behind loss spikes -> one is due to crossing at zero of vectors that get normalized.
 
 #### Vivien's TODO
 - Settle on a base configuration to make sweep experiments simple.
 - Check consistency of ffn_dim sweep when keeping the same seed.
 
+- Find a default run, launch ablation studies from a default config.
+- Show the dynamics
+
 Code Amelioration
+    - [ ] Add the possibility to create subfolder in the results we are saving. Like Wes MK1.
     - [ ] Write subfunctions for the visualization to be able to pick the ones we want. Load a json config file for the visualization.
 
 - Fine-tuning

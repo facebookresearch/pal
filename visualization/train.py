@@ -63,9 +63,9 @@ class ExperimentConfig:
     nb_data: int = 2048
 
     # optimization
-    batch_size: int = None
-    nb_epochs: int = 4_000
-    lr: float = 1e-2
+    batch_size: int = 32
+    nb_epochs: int = 1_000
+    lr: float = 3e-3
     mlp_lr_discount: float = None
 
     # model
@@ -236,13 +236,13 @@ def run_experiments(
     seq_length: int = 12,
     sparsity_index: int = 5,
     nb_data: int = 2048,
-    batch_size: int = None,
+    batch_size: int = 32,
     nb_epochs: int = 1_000,
-    lr: float = 1e-2,
+    lr: float = 3e-3,
     mlp_lr_discount: float = None,
     emb_dim: int = 2,
     nb_emb: int = None,
-    ffn_dim: int = 10,
+    ffn_dim: int = 32,
     ffn_bias: bool = True,
     ffn_dropout: float = 0,
     activation: float = "gelu",
@@ -332,22 +332,17 @@ def run_grid(
         "seq_length": [12],
         "sparsity_index": [5],
         "nb_data": [2048],
-        # "batch_size": [None, 32],
         "batch_size": [32],
         "nb_epochs": [1_000],
-        # "lr": [1e-2, 1e-3, 1e-4],
-        # "lr": [3e-1, 1e-1, 3e-2, 1e-2, 3e-3, 1e-3],
-        "lr": [1e-2],
-        # "mlp_lr_discount": [None, 3, 10],
+        "lr": [3e-3],
         "mlp_lr_discount": [None],
         "emb_dim": [2],
         "nb_emb": [3],
-        "ffn_dim": [8, 16, 32, 64, 128],
+        "ffn_dim": [32],
         "ffn_bias": [True],
         "ffn_dropout": [0],
         "activation": ["gelu"],
-        # "seed": range(100),
-        "seed": range(10),
+        "seed": range(100),
         "save_weights": [False],
     }
     all_configs = product(*grid.values())
