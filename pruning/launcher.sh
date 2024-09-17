@@ -1,25 +1,35 @@
 #!/usr/bin/bash
 
+# In order to remove your change from git history, you can use the following command:
+# ```shell
+# $ git update-index --skip-worktree user_config.ini
+# ```
+# To track back the file, you can use the following command:
+# ```shell
+# $ git update-index --no-skip-worktree user_config.ini
+# ```
+# To list all files that are marked as skip-worktree, you can use the following command:
+# ```shell
+# $ git ls-files -v . | grep ^S
+# ```
+
 # Logging configuration
-#SBATCH --job-name=modular
-#SBATCH --output=/checkpoint/%u/modular/%j-%a.out
-#SBATCH --error=/checkpoint/%u/modular/%j-%a.err
-#SBATCH --mail-type=END
-#SBATCH --mail-user=%u@meta.com
+#SBATCH --job-name=visu
+#SBATCH --output=~/%u/visu/%j-%a.out
+#SBATCH --error=~/%u/visu/%j-%a.err
 
 # Job specification
-#SBATCH --partition=scavenge
 #SBATCH --time=5:00:00
 #SBATCH --mem=64G
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
 #SBATCH --gpus-per-node=1
-#SBATCH --array=1-2400
+#SBATCH --array=1-50
 
 
-python /private/home/vivc/code/memory-theory/pruning/train.py grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID
+python ./train.py grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID
 
-# python /private/home/vivc/code/memory-theory/pruning/visualization.py get_animation --unique-id 44581400e13d49c282334b08b6060382 --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID
+# python ./visualization.py get_animation --unique-id 44581400e13d49c282334b08b6060382 --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID
 
-# python pruning/visualization.py aggregate_video -unique-id 44581400e13d49c282334b08b6060382
+# python ./visualization.py aggregate_video -unique-id 44581400e13d49c282334b08b6060382

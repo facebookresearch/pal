@@ -12,6 +12,7 @@ dist
 *savings/
 
 # Saved files
+configs.jsonl
 *.npy
 *.pdf
 *.png
