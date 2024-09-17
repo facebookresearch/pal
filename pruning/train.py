@@ -135,12 +135,20 @@ def run_from_config(config: ExperimentConfig):
     logger.info(f"Training set: {train_loader.dataset}")
     logger.info(f"Testing set: {test_loader.dataset}")
 
+    # Consistent random initialization when varying ffn_dim
+    nb_params = 2 * config.emb_dim + 2
+    with torch.no_grad():
+        params = torch.rand(config.ffn_dim, nb_params)
+        params *= 2
+        params -= 1
+
     # Model
 
     tmp = config.vocab_size
     config.vocab_size = config.nb_emb
     model = Model(config)
     config.vocab_size = tmp
+    model.mlp.set_parameters(params)
     model.to(device=DEVICE)
     logger.info(f"Model with {sum(p.numel() for p in model.parameters())} parameters, running on {DEVICE}")
 
@@ -324,17 +332,22 @@ def run_grid(
         "seq_length": [12],
         "sparsity_index": [5],
         "nb_data": [2048],
-        "batch_size": [None, 32],
+        # "batch_size": [None, 32],
+        "batch_size": [32],
         "nb_epochs": [1_000],
-        "lr": [1e-2, 1e-3, 1e-4],
-        "mlp_lr_discount": [None, 3, 10],
+        # "lr": [1e-2, 1e-3, 1e-4],
+        # "lr": [3e-1, 1e-1, 3e-2, 1e-2, 3e-3, 1e-3],
+        "lr": [1e-2],
+        # "mlp_lr_discount": [None, 3, 10],
+        "mlp_lr_discount": [None],
         "emb_dim": [2],
         "nb_emb": [3],
-        "ffn_dim": [8, 16, 32, 128],
+        "ffn_dim": [8, 16, 32, 64, 128],
         "ffn_bias": [True],
         "ffn_dropout": [0],
         "activation": ["gelu"],
-        "seed": range(100),
+        # "seed": range(100),
+        "seed": range(10),
         "save_weights": [False],
     }
     all_configs = product(*grid.values())

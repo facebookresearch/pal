@@ -148,6 +148,36 @@ class TransformerFeedForward(nn.Module):
         out = F.dropout(out, p=self.dropout, training=self.training)
         return out
 
+    def set_parameters(self, params):
+        """
+        Method to ensure consistence according ffn_dim sweep for fixed random seed.
+
+        Parameters
+        ----------
+        params: torch.Tensor
+            Random uniform parameters between -1 and 1 to initialize the model.
+        """
+        ffn_dim, emb_dim = self.fc1.weight.size()
+        print(emb_dim, ffn_dim)
+
+        bound = 1 / math.sqrt(emb_dim)
+        w1 = params[:, :emb_dim]
+        w1 *= bound
+        b1 = params[:, 2 * emb_dim]
+        b1 *= bound
+
+        bound = 1 / math.sqrt(ffn_dim)
+        w2 = params[:, emb_dim : 2 * emb_dim]
+        w2 *= bound
+        b2 = params[:emb_dim, 2 * emb_dim + 1]
+        b2 *= bound
+
+        self.fc1.weight.data = w1
+        self.fc2.weight.data = w2
+        if self.fc1.bias is not None:
+            self.fc1.bias.data = b1
+            self.fc2.bias.data = b2
+
 
 # -------------------------------------------------------------------------------
 # Normalization Module
