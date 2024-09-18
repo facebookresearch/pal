@@ -57,7 +57,7 @@ def aggregate_configs(save_ext: str = None) -> None:
                 continue
 
     CONFIG_DIR.mkdir(exist_ok=True, parents=True)
-    print(agg_config_file)
+    logging.info(f"Saving config in {agg_config_file}")
     with open(agg_config_file, "w") as f:
         for config in all_configs:
             json.dump(config, f)

@@ -22,9 +22,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+from configs import get_paths
 from matplotlib import rc
 
-from factorization.config import CONFIG_FILE, IMAGE_DIR, SAVE_DIR
+from factorization.config import IMAGE_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ if usetex:
 # %% Utils
 
 
-def load_configs() -> pd.DataFrame:
+def load_configs(save_ext: str = None) -> pd.DataFrame:
     """
     Load all configurations from the aggregated configuration file.
 
@@ -47,15 +48,18 @@ def load_configs() -> pd.DataFrame:
     -------
     all_configs
         DataFrame with all configurations.
+    save_ext
+        Experiments folder identifier.
     """
-    all_configs = pd.read_json(CONFIG_FILE, lines=True)
+    _, config_file = get_paths(save_ext)
+    all_configs = pd.read_json(config_file, lines=True)
     ind = np.isnan(all_configs["mlp_lr_discount"])
     all_configs.loc[ind, "mlp_lr_discount"] = 1
     return all_configs
 
 
 def load_experimental_results(
-    all_configs: pd.DataFrame, decorators: list[str], **kwargs: dict[str, any]
+    all_configs: pd.DataFrame, decorators: list[str], save_ext: str = None, **kwargs: dict[str, any]
 ) -> pd.DataFrame:
     """
     Load all experimental results related to the aggregated configuration file.
@@ -66,6 +70,8 @@ def load_experimental_results(
         DataFrame with all experimental configurations.
     decorators
         List of config hyperparameters to include in the DataFrame.
+    save_ext
+        Experiments folder identifier.
     kwargs
         Hyperparameters arguments to filter the data.
         If the value is a list, the data will be filtered according to the values in the list.
@@ -76,9 +82,11 @@ def load_experimental_results(
     all_data
         DataFrame with all experimental results.
     """
+    save_dir, _ = get_paths(save_ext)
+
     all_data = []
     for experience in all_configs.itertuples():
-        if not Path(SAVE_DIR / experience.id).exists():
+        if not Path(save_dir / experience.id).exists():
             logger.info(f"Skipping {experience.id}, no data found.")
             continue
 
@@ -101,10 +109,10 @@ def load_experimental_results(
                 pd.DataFrame(
                     torch.stack(
                         [
-                            np.load(SAVE_DIR / experience.id / "accs.pkl", allow_pickle=True),
-                            np.load(SAVE_DIR / experience.id / "test_accs.pkl", allow_pickle=True),
-                            np.load(SAVE_DIR / experience.id / "losses.pkl", allow_pickle=True),
-                            np.load(SAVE_DIR / experience.id / "test_losses.pkl", allow_pickle=True),
+                            np.load(save_dir / experience.id / "accs.pkl", allow_pickle=True),
+                            np.load(save_dir / experience.id / "test_accs.pkl", allow_pickle=True),
+                            np.load(save_dir / experience.id / "losses.pkl", allow_pickle=True),
+                            np.load(save_dir / experience.id / "test_losses.pkl", allow_pickle=True),
                         ]
                     ).T,
                     columns=["acc", "test_acc", "loss", "test_loss"],
@@ -138,12 +146,13 @@ def extract_all_runs_info(data: pd.DataFrame) -> pd.DataFrame:
     out
         DataFrame extracting runs information.
     """
+    nb_epochs = data["epoch"].max()
     columns = ["batch_size", "lr", "mlp_lr_discount", "ffn_dim", "seed"]
     out = data.groupby(columns)["test_acc"].idxmax().reset_index()
     out["argmax"] = out["test_acc"]
     out["high"] = data["test_acc"].iloc[out["argmax"]].reset_index(drop=True)
     out["argmax"] = data["epoch"].iloc[out["argmax"]].reset_index(drop=True)
-    out["test_acc"] = data[data.epoch == 1000].groupby(columns)["test_acc"].mean().reset_index()["test_acc"]
+    out["test_acc"] = data[data.epoch == nb_epochs].groupby(columns)["test_acc"].mean().reset_index()["test_acc"]
     return out
 
 
@@ -179,13 +188,10 @@ def extract_run_info(data: pd.DataFrame, **kwargs) -> pd.DataFrame:
 # %%
 
 
-# %%
-
-
 # Accuracy and Loss
 
 
-def plot_losses(unique_id: int, file_format: str = "pdf", title: str = None) -> None:
+def plot_losses(unique_id: int, file_format: str = "pdf", title: str = None, save_ext: str = None) -> None:
     """
     Plot the losses for a given unique ID.
 
@@ -197,8 +203,11 @@ def plot_losses(unique_id: int, file_format: str = "pdf", title: str = None) -> 
         File format for the image.
     title
         Title for the plot.
+    save_ext
+        Experiments folder identifier.
     """
-    save_dir = SAVE_DIR / unique_id
+    save_dir, _ = get_paths(save_ext)
+    save_dir = save_dir / unique_id
     losses = pickle.load(open(save_dir / "losses.pkl", "rb"))
     test_losses = pickle.load(open(save_dir / "test_losses.pkl", "rb"))
     accs = pickle.load(open(save_dir / "accs.pkl", "rb"))
@@ -217,13 +226,14 @@ def plot_losses(unique_id: int, file_format: str = "pdf", title: str = None) -> 
     axes[1].legend()
     axes[1].grid()
 
-    save_dir = IMAGE_DIR / "losses"
+    save_ext = save_ext if save_ext is not None else "base"
+    save_dir = IMAGE_DIR / save_ext
     save_dir.mkdir(exist_ok=True, parents=True)
     fig.suptitle(title if title else f"Losses for configuration {unique_id}")
     fig.savefig(save_dir / f"{unique_id}.{file_format}", bbox_inches="tight")
 
 
-def plot_all_losses(file_format: str = "pdf") -> None:
+def plot_all_losses(file_format: str = "pdf", save_ext: str = None) -> None:
     """
     Plot the losses for all configurations in the aggregated config file.
 
@@ -231,12 +241,15 @@ def plot_all_losses(file_format: str = "pdf") -> None:
     ----------
     file_format
         File format for the image.
+    save_ext
+        Experiments folder identifier
 
     Nota Bene
     ---------
     In order to annotate the plots with the quantities of interest, change the `title` variable in this function.
     """
-    with open(CONFIG_FILE, "r") as f:
+    _, config_file = get_paths(save_ext)
+    with open(config_file, "r") as f:
         lines = f.readlines()
 
     for line in lines:
@@ -247,7 +260,7 @@ def plot_all_losses(file_format: str = "pdf") -> None:
             continue
         try:
             title = f"bsz={config['batch_size']}, lr={config['lr']}, ffn_dim={config['ffn_dim']}, seed={config['seed']}"
-            plot_losses(config["id"], file_format=file_format, title=title)
+            plot_losses(config["id"], file_format=file_format, title=title, save_ext=save_ext)
             logger.info(f"Losses for configuration {config['id']} plotted.")
         except Exception as e:
             logger.warning(f"Error for configuration: {config}.")
@@ -270,10 +283,4 @@ if __name__ == "__main__":
             "losses": plot_all_losses,
         }
     )
-
-    all_configs = load_configs()
-    keys = ["batch_size", "lr", "mlp_lr_discount", "ffn_dim", "seed", "id"]
-    data = load_experimental_results(all_configs, keys)
-
-    run_info = extract_run_info(data)
 # %%
