@@ -80,6 +80,7 @@ class ExperimentConfig:
     seed: int = None
 
     # saving
+    save_ext: str = None
     save_weights: bool = False
     interactive: bool = True
 
@@ -112,7 +113,10 @@ def run_from_config(config: ExperimentConfig):
         RNG = np.random.default_rng()
 
     unique_id = uuid.uuid4().hex
-    save_dir = SAVE_DIR / unique_id
+    if config.save_ext is None:
+        save_dir = SAVE_DIR / unique_id
+    else:
+        save_dir = SAVE_DIR / config.save_ext / unique_id
 
     save_dir.mkdir(exist_ok=True, parents=True)
     with open(save_dir / "config.json", "w") as f:
@@ -247,6 +251,7 @@ def run_experiments(
     ffn_dropout: float = 0,
     activation: float = "gelu",
     seed: int = None,
+    save_ext: str = None,
     save_weights: bool = False,
 ) -> None:
     """
@@ -284,6 +289,8 @@ def run_experiments(
         The activation function.
     seed:
         The random seed.
+    save_ext:
+        Experiments saving folder identifier.
     save_weights:
         Whether to save the weights.
     """
@@ -304,9 +311,11 @@ def run_experiments(
         ffn_dropout=ffn_dropout,
         activation=activation,
         seed=seed,
+        save_ext=save_ext,
         save_weights=save_weights,
     )
 
+    logger.info(f"Running experiment with {config=}")
     run_from_config(config)
 
 
@@ -314,8 +323,9 @@ def run_experiments(
 
 
 def run_grid(
-    num_tasks=1,
-    task_id=1,
+    num_tasks: int = 1,
+    task_id: int = 1,
+    ablation: str = None,
 ) -> None:
     """
     Run a grid of configurations for training.
@@ -326,6 +336,8 @@ def run_grid(
         The total number of tasks to run concurrently.
     task_id:
         The ID of the current task.
+    ablation:
+        Type of ablation study to perform.
     """
     grid = {
         "vocab_size": [2],
@@ -345,9 +357,23 @@ def run_grid(
         "seed": range(100),
         "save_weights": [False],
     }
+    if ablation == "batch_size":
+        grid["batch_size"] = np.logspace(0, 11, num=12, base=2).astype(int).tolist()
+    elif ablation == "lr":
+        grid["lr"] = np.logspace(0, -4, num=20).tolist()
+    elif ablation == "mlp_lr":
+        grid["mlp_lr_discount"] = np.logspace(-2, 2, num=20).tolist()
+    elif ablation == "ffn_dim":
+        grid["ffn_dim"] = np.logspace(1, 3, 20).astype(int).tolist()
+    elif ablation == "ffn_bias":
+        grid["ffn_bias"] = [True, False]
+    elif ablation == "ffn_dropout":
+        grid["ffn_dropout"] = np.linspace(0, 0.9, 20).tolist()
+
     all_configs = product(*grid.values())
 
     logger.info(f"Running {len(list(all_configs))} configurations with {num_tasks} tasks.")
+    logger.info(f"Ablation mode is {ablation}.")
 
     for i, values in enumerate(product(*grid.values())):
         # Handling the grid concurrently with many tasks
@@ -357,6 +383,7 @@ def run_grid(
         # setup configuration
         kwargs = dict(zip(grid.keys(), values))
         kwargs["interactive"] = False
+        kwargs["save_ext"] = ablation
         config = ExperimentConfig(**kwargs)
 
         logger.info(f"{config=}")

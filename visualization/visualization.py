@@ -22,7 +22,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from matplotlib import rc
-from utils import recover_config
+from visualization.configs import recover_config
 
 from factorization.config import IMAGE_DIR, SAVE_DIR
 from factorization.models.softmax_model import Model, ModelConfig, RMSNorm

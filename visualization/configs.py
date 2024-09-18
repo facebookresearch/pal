@@ -1,17 +1,50 @@
 import json
 import logging
 
-from factorization.config import CONFIG_FILE, SAVE_DIR
+from factorization.config import CONFIG_DIR, SAVE_DIR
 
 logger = logging.getLogger(__name__)
 
 
-def aggregate_configs() -> None:
+def get_paths(save_ext: str = None) -> None:
+    """
+    Get used file paths.
+
+    Parameters
+    ----------
+    save_ext
+        Experiments folder identifier.
+
+    Returns
+    -------
+    save_dir
+        Experiments folder path.
+    config_file
+        Configuration file path.
+    """
+
+    if save_ext is None:
+        save_dir = SAVE_DIR
+        config_file = CONFIG_DIR / "base.jsonl"
+    else:
+        save_dir = SAVE_DIR / save_ext
+        config_file = CONFIG_DIR / f"{save_ext}.jsonl"
+    return save_dir, config_file
+
+
+def aggregate_configs(save_ext: str = None) -> None:
     """
     Aggregate all configuration files from the subdirectories of `SAVE_DIR`.
+
+    Parameters
+    ----------
+    save_ext
+        Experiments folder identifier.
     """
+    save_dir, agg_config_file = get_paths(save_ext)
+
     all_configs = []
-    for sub_dir in SAVE_DIR.iterdir():
+    for sub_dir in save_dir.iterdir():
         if sub_dir.is_dir():
             config_file = sub_dir / "config.json"
             try:
@@ -23,13 +56,15 @@ def aggregate_configs() -> None:
                 logger.warning(e)
                 continue
 
-    with open(CONFIG_FILE, "w") as f:
+    CONFIG_DIR.mkdir(exist_ok=True, parents=True)
+    print(agg_config_file)
+    with open(agg_config_file, "w") as f:
         for config in all_configs:
             json.dump(config, f)
             f.write("\n")
 
 
-def recover_config(unique_id: str = None) -> dict[str, any]:
+def recover_config(unique_id: str = None, save_ext: str = None) -> dict[str, any]:
     """
     Recover the configuration file for a given unique ID.
 
@@ -42,9 +77,13 @@ def recover_config(unique_id: str = None) -> dict[str, any]:
     -------
     config
         Configuration dictionary.
+    save_ext
+        Experiments folder identifier.
     """
+    save_dir, config_file = get_paths(save_ext)
+
     try:
-        config_file = SAVE_DIR / str(unique_id) / "config.json"
+        config_file = save_dir / str(unique_id) / "config.json"
         with open(config_file, "r") as f:
             config = json.load(f)
     except FileNotFoundError:
@@ -66,7 +105,8 @@ def recover_config_from_aggregated(unique_id: str) -> dict[str, any]:
     config
         Configuration dictionary.
     """
-    with open(CONFIG_FILE, "r") as f:
+    config_file = CONFIG_DIR / "base.jsonl"
+    with open(config_file, "r") as f:
         lines = f.readlines()
     for line in lines:
         try:

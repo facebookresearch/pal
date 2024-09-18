@@ -7,9 +7,8 @@ __pycache__
 dist
 
 # Saving directory
-*figures/
-*results/
-*savings/
+launchers/
+savings/
 
 # Saved files
 configs.jsonl

@@ -4,14 +4,15 @@
 - [ ] Understand reasons behind loss spikes -> one is due to crossing at zero of vectors that get normalized.
 
 #### Vivien's TODO
-- Settle on a base configuration to make sweep experiments simple.
-- Check consistency of ffn_dim sweep when keeping the same seed.
 
-- Find a default run, launch ablation studies from a default config.
-- Show the dynamics
+1. Add the possibility to create subfolder in the results we are saving. Like Wes MK1.
+    - analyze results/tmp.
+2. Check consistency of ffn_dim sweep when keeping the same seed. Check it also if we change the dataloader.
 
-Code Amelioration
-    - [ ] Add the possibility to create subfolder in the results we are saving. Like Wes MK1.
+3. launch ablation studies from a default config.
+4. Settle on a random seed, and show the dynamics (look at what happen for each seed when we move in the different directions)
+
+- Code Amelioration
     - [ ] Write subfunctions for the visualization to be able to pick the ones we want. Load a json config file for the visualization.
 
 - Fine-tuning
