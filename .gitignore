@@ -1,0 +1,18 @@
+
+# Build, cache and configuration files
+.DS_Store
+*.egg-info
+.vscode
+__pycache__
+dist
+
+# Saving directory
+launchers/
+savings/
+
+# Saved files
+configs.jsonl
+*.npy
+*.pdf
+*.png
+*.zip

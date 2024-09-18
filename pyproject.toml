@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metapal"
+version = "0.0.0"
+authors = [
+  { name="Vivien Cabannes", email="vivien.cabannes@gmail.com" },
+]
+description = "Experiments regarding LLM components"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    # essential
+    "scikit-learn",
+    "numpy",
+    "torch",
+
+    # argument parsing
+    "fire",
+
+    # transformer libraries
+    "sentencepiece",
+    "tiktoken",
+    "transformers",
+
+    # visualization
+    "ipykernel",
+    "ipywidgets",
+    "matplotlib",
+    "moviepy",
+    "networkx",
+    "seaborn",
+
+    # formatting
+    "black",
+    "flake8",
+    "flake8-pyproject",
+    "isort",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/facebookresearch/pal"
+"Bug Tracker" = "https://github.com/facebookresearch/pal/issues"
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"
+
+[tool.flake8]
+max-line-length = 120
+ignore = [
+    "E203",  # whitespace before ':'
+    "E722",  # do not use bare 'except'
+    "W503",  # line break before binary operator
+]
+per-file-ignores = [
+    '__init__.py:F401',
+]
