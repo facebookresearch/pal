@@ -189,12 +189,21 @@ def extract_averaged_info(data: pd.DataFrame, average_key: list[str], **kwargs) 
 # Ablation study plot
 
 
-def show_ablation(seed: bool = False, key: str = "test_acc"):
+def show_ablation(seed: bool = False, key: str = "test_acc", file_format: str = "png"):
     """
-    Ablation study code, relative to `train.py`"""
+    Ablation study code, relative to `train.py`
+
+    Parameters
+    ----------
+    seed
+        Whether to plot the ablation study for each seed.
+    key
+        Key to plot. Wether `test_acc` or `success`.
+    file_format
+        File format for the images.
+    """
     all_data = {}
     exp_ids = ["batch_size", "ffn_bias", "ffn_dim", "ffn_dropout", "lr", "mlp_lr"]
-    exp_ids = ["ffn_bias", "ffn_dim", "ffn_dropout", "lr", "mlp_lr"]
     group_keys = ["batch_size", "ffn_bias", "ffn_dim", "ffn_dropout", "lr", "mlp_lr_discount", "seed", "id"]
 
     for exp_id in exp_ids:
@@ -206,12 +215,13 @@ def show_ablation(seed: bool = False, key: str = "test_acc"):
 
     image_dir = IMAGE_DIR / "seed"
     image_dir.mkdir(exist_ok=True, parents=True)
-    max_seed = all_data[exp_ids[0]]["seed"].max()
+    nb_seeds = all_data[exp_ids[0]]["seed"].max() + 1
     nb_epochs = all_data[exp_ids[0]]["epoch"].max()
 
     group_keys = ["batch_size", "ffn_bias", "ffn_dim", "ffn_dropout", "lr", "mlp_lr_discount"]
+    log_keys = ["batch_size", "ffn_dim", "lr", "mlp_lr_discount"]
     if seed:
-        for seed in range(max_seed):
+        for seed in range(nb_seeds):
             logger.info(f"Processing seed {seed}.")
             kwargs = {"epoch": nb_epochs, "seed": seed}
 
@@ -222,10 +232,10 @@ def show_ablation(seed: bool = False, key: str = "test_acc"):
                     exp_id = "mlp_lr_discount"
                 axes[i].plot(mean[exp_id], mean[key])
                 axes[i].set_title(exp_id)
-                if exp_id in ["ffn_dim", "lr", "mlp_lr_discount"]:
+                if exp_id in log_keys:
                     axes[i].set_xscale("log")
             fig.suptitle(seed)
-            fig.savefig(image_dir / f"{seed}.png", bbox_inches="tight")
+            fig.savefig(image_dir / f"{seed}_{key}.{file_format}", bbox_inches="tight")
     else:
         kwargs = {"epoch": nb_epochs}
 
@@ -237,10 +247,10 @@ def show_ablation(seed: bool = False, key: str = "test_acc"):
             axes[i].plot(mean[exp_id], mean[key])
             axes[i].fill_between(mean[exp_id], mean[key] - std[key], mean[key] + std[key], alpha=0.2)
             axes[i].set_title(exp_id)
-            if exp_id in ["ffn_dim", "lr", "mlp_lr_discount"]:
+            if exp_id in log_keys:
                 axes[i].set_xscale("log")
         fig.suptitle("All")
-        fig.savefig(image_dir / "all.png", bbox_inches="tight")
+        fig.savefig(image_dir / f"all_{key}.{file_format}", bbox_inches="tight")
 
 
 # Accuracy and Loss
