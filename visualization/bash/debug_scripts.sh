@@ -9,4 +9,5 @@ python ../analysis.py losses --save-ext tmp --file-format png
 while read line; do
   name=$(echo $line | jq '.id')
   python ../visualization.py frame --epoch 0 --file-format png --save-ext tmp --unique-id $name
+  python ../visualization.py animation --save-ext tmp --unique-id $name
 done < ../../savings/configs/tmp.jsonl
