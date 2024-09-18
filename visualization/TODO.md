@@ -5,14 +5,9 @@
 
 #### Vivien's TODO
 
-1. Add the possibility to create subfolder in the results we are saving. Like Wes MK1.
-    - analyze results/tmp.
-    - plot frames for results/tmp.
-
-2. Check consistency of ffn_dim sweep when keeping the same seed. Check it also if we change the dataloader.
-
-3. launch ablation studies from a default config.
-4. Settle on a random seed, and show the dynamics (look at what happen for each seed when we move in the different directions)
+We have settle on a random seed, 
+- show fine-grained visualization of test acc vs sweep axis
+- get visualization, and analyze them manually
 
 - Code Amelioration
     - [ ] Write subfunctions for the visualization to be able to pick the ones we want. Load a json config file for the visualization.
@@ -21,6 +16,7 @@
     - [ ] write some fine-tuning experiments.
     - [ ] Write visualization when $p=3$ with triangles for the sequence associated to $y = 2$.
 
+Clean this file.
 Read Nanda, LLaMa3, MuP.
 
 ## Visualize memorizaton vs. algorithm

@@ -359,18 +359,28 @@ def run_grid(
         "seed": range(100),
         "save_weights": [False],
     }
+
+    grid["seed"] = [89]
+    grid["save_weights"] = [True]
+
     if ablation == "batch_size":
         grid["batch_size"] = np.logspace(0, 11, num=12, base=2).astype(int).tolist()
+        grid["batch_size"] = np.logspace(3, 6, num=20, base=2).astype(int)[1:].tolist()
     elif ablation == "lr":
         grid["lr"] = np.logspace(0, -4, num=20).tolist()
+        grid["lr"] = np.logspace(-2, -3, num=20).tolist()
     elif ablation == "mlp_lr":
         grid["mlp_lr_discount"] = np.logspace(-2, 2, num=20).tolist()
+        grid["mlp_lr_discount"] = np.logspace(-1, 1, num=20).tolist()
     elif ablation == "ffn_dim":
         grid["ffn_dim"] = np.logspace(1, 3, 20).astype(int).tolist()
+        grid["ffn_dim"] = np.logspace(1, 2.1, 20).astype(int).tolist()
     elif ablation == "ffn_bias":
         grid["ffn_bias"] = [True, False]
     elif ablation == "ffn_dropout":
         grid["ffn_dropout"] = np.linspace(0, 0.9, 20).tolist()
+
+    ablation = ablation + "_89"
 
     all_configs = product(*grid.values())
 
