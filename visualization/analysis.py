@@ -129,7 +129,7 @@ def load_experimental_results(
 # Extract Run Information
 
 
-def extract_all_runs_info(data: pd.DataFrame) -> pd.DataFrame:
+def extract_runs_info(data: pd.DataFrame) -> pd.DataFrame:
     """
     Extract and annotate runs for further analysis.
 
@@ -153,7 +153,7 @@ def extract_all_runs_info(data: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def extract_run_info(data: pd.DataFrame, **kwargs) -> pd.DataFrame:
+def extract_averaged_info(data: pd.DataFrame, average_key: list[str], **kwargs) -> pd.DataFrame:
     """
     Extract average run based on filters.
 
@@ -161,28 +161,86 @@ def extract_run_info(data: pd.DataFrame, **kwargs) -> pd.DataFrame:
     ----------
     data
         DataFrame containing all experimental results.
+    average_key
+        List of keys to condition the averaging.
     kwargs
         Hyperparameters arguments to filter the data.
 
     Returns
     -------
-    out
-        DataFrame extracting run information.
+    mean
+        Mean DataFrame.
+    std
+        Standard deviation DataFrame.
     """
     ind = np.ones(data.shape[0], dtype=bool)
     for key, value in kwargs.items():
         if value is not None:
             ind &= data[key] == value
-    exp_data = data[ind].reset_index()
-    exp_data["id"] = 0
-    exp_data["success"] = exp_data["test_acc"] > 0.99
+    exp_data = data[ind]
+    exp_data.loc[:, "id"] = 0
 
-    mean = exp_data.groupby(["epoch"]).mean()
-    std = exp_data.groupby(["epoch"]).std()
+    group = exp_data.groupby(average_key)
+    mean = group.mean().reset_index()
+    std = group.std().reset_index()
     return mean, std
 
 
-# %%
+# Ablation study plot
+
+
+def show_ablation(seed: bool = False, key: str = "test_acc"):
+    """
+    Ablation study code, relative to `train.py`"""
+    all_data = {}
+    exp_ids = ["batch_size", "ffn_bias", "ffn_dim", "ffn_dropout", "lr", "mlp_lr"]
+    exp_ids = ["ffn_bias", "ffn_dim", "ffn_dropout", "lr", "mlp_lr"]
+    group_keys = ["batch_size", "ffn_bias", "ffn_dim", "ffn_dropout", "lr", "mlp_lr_discount", "seed", "id"]
+
+    for exp_id in exp_ids:
+        logger.info(f"Loading data for {exp_id}.")
+        all_configs = load_configs(exp_id)
+        data = load_experimental_results(all_configs, group_keys, exp_id)
+        data["success"] = data["test_acc"] > 0.98
+        all_data[exp_id] = data
+
+    image_dir = IMAGE_DIR / "seed"
+    image_dir.mkdir(exist_ok=True, parents=True)
+    max_seed = all_data[exp_ids[0]]["seed"].max()
+    nb_epochs = all_data[exp_ids[0]]["epoch"].max()
+
+    group_keys = ["batch_size", "ffn_bias", "ffn_dim", "ffn_dropout", "lr", "mlp_lr_discount"]
+    if seed:
+        for seed in range(max_seed):
+            logger.info(f"Processing seed {seed}.")
+            kwargs = {"epoch": nb_epochs, "seed": seed}
+
+            fig, axes = plt.subplots(1, len(exp_ids), figsize=(5 * len(exp_ids), 5))
+            for i, exp_id in enumerate(exp_ids):
+                mean, std = extract_averaged_info(all_data[exp_id], group_keys, **kwargs)
+                if exp_id == "mlp_lr":
+                    exp_id = "mlp_lr_discount"
+                axes[i].plot(mean[exp_id], mean[key])
+                axes[i].set_title(exp_id)
+                if exp_id in ["ffn_dim", "lr", "mlp_lr_discount"]:
+                    axes[i].set_xscale("log")
+            fig.suptitle(seed)
+            fig.savefig(image_dir / f"{seed}.png", bbox_inches="tight")
+    else:
+        kwargs = {"epoch": nb_epochs}
+
+        fig, axes = plt.subplots(1, len(exp_ids), figsize=(5 * len(exp_ids), 5))
+        for i, exp_id in enumerate(exp_ids):
+            mean, std = extract_averaged_info(all_data[exp_id], group_keys, **kwargs)
+            if exp_id == "mlp_lr":
+                exp_id = "mlp_lr_discount"
+            axes[i].plot(mean[exp_id], mean[key])
+            axes[i].fill_between(mean[exp_id], mean[key] - std[key], mean[key] + std[key], alpha=0.2)
+            axes[i].set_title(exp_id)
+            if exp_id in ["ffn_dim", "lr", "mlp_lr_discount"]:
+                axes[i].set_xscale("log")
+        fig.suptitle("All")
+        fig.savefig(image_dir / "all.png", bbox_inches="tight")
 
 
 # Accuracy and Loss
@@ -277,6 +335,7 @@ if __name__ == "__main__":
     )
     fire.Fire(
         {
+            "ablation": show_ablation,
             "losses": plot_all_losses,
         }
     )
