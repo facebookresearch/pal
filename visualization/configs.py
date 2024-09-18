@@ -72,6 +72,8 @@ def recover_config(unique_id: str = None, save_ext: str = None) -> dict[str, any
     ----------
     unique_id
         Unique identifier for the configuration file.
+    save_ext
+        Experiments folder identifier.
 
     Returns
     -------
@@ -80,18 +82,20 @@ def recover_config(unique_id: str = None, save_ext: str = None) -> dict[str, any
     save_ext
         Experiments folder identifier.
     """
-    save_dir, config_file = get_paths(save_ext)
+    save_dir, _ = get_paths(save_ext)
 
     try:
         config_file = save_dir / str(unique_id) / "config.json"
         with open(config_file, "r") as f:
             config = json.load(f)
-    except FileNotFoundError:
-        config = recover_config_from_aggregated(unique_id)
+    except FileNotFoundError as e:
+        logger.info(f"Configuration file for {unique_id} not found.")
+        logger.info(e)
+        config = recover_config_from_aggregated(unique_id, save_ext=save_ext)
     return config
 
 
-def recover_config_from_aggregated(unique_id: str) -> dict[str, any]:
+def recover_config_from_aggregated(unique_id: str, save_ext: str = None) -> dict[str, any]:
     """
     Recover the configuration file for a given unique ID from the aggregated file.
 
@@ -105,7 +109,7 @@ def recover_config_from_aggregated(unique_id: str) -> dict[str, any]:
     config
         Configuration dictionary.
     """
-    config_file = CONFIG_DIR / "base.jsonl"
+    _, config_file = get_paths(save_ext)
     with open(config_file, "r") as f:
         lines = f.readlines()
     for line in lines:

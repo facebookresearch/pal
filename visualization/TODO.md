@@ -7,6 +7,8 @@
 
 1. Add the possibility to create subfolder in the results we are saving. Like Wes MK1.
     - analyze results/tmp.
+    - plot frames for results/tmp.
+
 2. Check consistency of ffn_dim sweep when keeping the same seed. Check it also if we change the dataloader.
 
 3. launch ablation studies from a default config.

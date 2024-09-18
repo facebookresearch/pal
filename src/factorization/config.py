@@ -9,6 +9,7 @@ in the root directory of this source tree.
 @ 2024, Meta
 """
 
+import subprocess
 from configparser import ConfigParser
 from pathlib import Path
 
@@ -31,3 +32,8 @@ for name in config["Relative Paths"]:
 
 for name in config["Absolute Paths"]:
     globals()[name.upper()] = Path(config["Absolute Paths"][name])
+
+
+# Tex available
+USETEX = not subprocess.run(["which", "pdflatex"], stdout=subprocess.DEVNULL).returncode
+USETEX = False

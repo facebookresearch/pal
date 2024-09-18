@@ -14,7 +14,6 @@ in the root directory of this source tree.
 import json
 import logging
 import pickle
-import subprocess
 import traceback
 from pathlib import Path
 
@@ -25,15 +24,13 @@ import torch
 from configs import get_paths
 from matplotlib import rc
 
-from factorization.config import IMAGE_DIR
+from factorization.config import IMAGE_DIR, USETEX
 
 logger = logging.getLogger(__name__)
 
 rc("font", family="serif", size=8)
-usetex = not subprocess.run(["which", "pdflatex"]).returncode
-usetex = False
-rc("text", usetex=usetex)
-if usetex:
+rc("text", usetex=USETEX)
+if USETEX:
     rc("text.latex", preamble=r"\usepackage{times}")
 
 

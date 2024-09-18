@@ -13,7 +13,6 @@ in the root directory of this source tree.
 
 import logging
 import pickle
-import subprocess
 
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
@@ -21,23 +20,21 @@ import moviepy.editor as mpy
 import numpy as np
 import torch
 import torch.nn.functional as F
+from configs import get_paths, recover_config
 from matplotlib import rc
-from visualization.configs import recover_config
 
-from factorization.config import IMAGE_DIR, SAVE_DIR
+from factorization.config import IMAGE_DIR, USETEX
 from factorization.models.softmax_model import Model, ModelConfig, RMSNorm
 
 logger = logging.getLogger(__name__)
 
 rc("font", family="serif", size=8)
-usetex = not subprocess.run(["which", "pdflatex"]).returncode
-usetex = False
-rc("text", usetex=usetex)
-if usetex:
+rc("text", usetex=USETEX)
+if USETEX:
     rc("text.latex", preamble=r"\usepackage{times}")
 
 
-def show_frame(unique_id: int, epoch: int, file_format: str = None):
+def show_frame(unique_id: int, epoch: int, file_format: str = None, save_ext: str = None):
     """
     Show a single frame for a given unique ID.
 
@@ -49,14 +46,18 @@ def show_frame(unique_id: int, epoch: int, file_format: str = None):
         Epoch to show.
     file_format
         File format for the image.
+    save_ext
+        Experiments folder identifier.
     """
-    config = recover_config(unique_id)
+    config = recover_config(unique_id, save_ext=save_ext)
     assert config["save_weights"], f"Weights were not saved for ID {unique_id}."
     assert epoch <= config["nb_epochs"], f"Epoch {epoch} is greater than the number of epochs {config['nb_epochs']}."
-    visualization_backend(unique_id, start_frame=epoch, end_frame=None, file_format=file_format)
+    visualization_backend(unique_id, start_frame=epoch, end_frame=None, file_format=file_format, save_ext=save_ext)
 
 
-def generate_animation(unique_id: int, num_tasks: int = 1, task_id: int = 1):
+def generate_animation(
+    unique_id: int, num_tasks: int = 1, task_id: int = 1, file_format: str = None, save_ext: str = None
+):
     """
     Generate an animation for a given unique ID.
 
@@ -66,10 +67,14 @@ def generate_animation(unique_id: int, num_tasks: int = 1, task_id: int = 1):
         Unique identifier for the configuration file.
     num_tasks
         Number of tasks to divide the animation into.
+    file_format
+        File format for the video.
     task_id
         Current task ID.
+    save_ext
+        Experiments folder identifier.
     """
-    config = recover_config(unique_id)
+    config = recover_config(unique_id, save_ext=save_ext)
     assert config["save_weights"], f"Weights were not saved for ID {unique_id}."
 
     ani_length = config["nb_epochs"]
@@ -80,10 +85,12 @@ def generate_animation(unique_id: int, num_tasks: int = 1, task_id: int = 1):
     start_frame = (task_id - 1) * block_length
     end_frame = task_id * block_length
 
-    visualization_backend(unique_id, start_frame, end_frame)
+    visualization_backend(unique_id, start_frame, end_frame, file_format=file_format, save_ext=save_ext)
 
 
-def visualization_backend(unique_id: int, start_frame: int, end_frame: int = None, file_format: str = None):
+def visualization_backend(
+    unique_id: int, start_frame: int, end_frame: int = None, file_format: str = None, save_ext: str = None
+):
     """
     Backend for the visualization functions.
 
@@ -100,18 +107,21 @@ def visualization_backend(unique_id: int, start_frame: int, end_frame: int = Non
         Frame to end at.
     file_format
         File format for the image or video.
+    save_ext
+        Experiments folder identifier.
     """
 
     # configuration and saved computations
 
-    config = recover_config(unique_id)
+    config = recover_config(unique_id, save_ext=save_ext)
     vocab_size = config["vocab_size"]
     length = config["seq_length"]
     sparsity_index = config["sparsity_index"]
     ffn_dim = config["ffn_dim"]
     assert config["save_weights"], f"Weights were not saved for ID {unique_id}."
 
-    save_dir = SAVE_DIR / unique_id
+    save_dir, _ = get_paths(save_ext)
+    save_dir = save_dir / unique_id
     weights = pickle.load(open(save_dir / "weights.pkl", "rb"))
     losses = pickle.load(open(save_dir / "losses.pkl", "rb"))
     test_losses = pickle.load(open(save_dir / "test_losses.pkl", "rb"))
@@ -279,7 +289,8 @@ def visualization_backend(unique_id: int, start_frame: int, end_frame: int = Non
         fig.savefig(save_dir / f"{unique_id}_{start_frame}.{file_format}", bbox_inches="tight")
 
     else:
-        save_dir = IMAGE_DIR / "videos" / "parts" / str(unique_id)
+        save_ext = save_ext if save_ext is not None else "base"
+        save_dir = IMAGE_DIR / "videos" / save_ext / "parts" / str(unique_id)
         save_dir.mkdir(exist_ok=True, parents=True)
         logger.info(f"Saving video ID {unique_id} from frame {start_frame} to frame {end_frame}.")
         ani = animation.FuncAnimation(fig, update, frames=range(start_frame, end_frame), repeat=False)
@@ -739,7 +750,7 @@ def show_acc(ax, acc, test_acc, **kwargs):
 # Aggregate videos
 
 
-def aggregate_video(unique_id: int):
+def aggregate_video(unique_id: int, save_ext: str = None):
     """
     Aggregate videos for a given unique ID.
 
@@ -747,13 +758,16 @@ def aggregate_video(unique_id: int):
     ----------
     unique_id
         Unique identifier for the configuration file.
+    save_ext
+        Experiments folder identifier.
     """
-    film_dir = SAVE_DIR / unique_id / "animation"
+    save_ext = save_ext if save_ext is not None else "base"
+    film_dir = IMAGE_DIR / "videos" / save_ext / "parts" / str(unique_id)
     files_to_aggregate = sorted([str(file) for file in film_dir.iterdir() if file.is_file()])
     logger.info(f"Aggregating {len(files_to_aggregate)} videos for ID {unique_id}.")
     clips = [mpy.VideoFileClip(file) for file in files_to_aggregate]
     concat_clip = mpy.concatenate_videoclips(clips)
-    film_dir = SAVE_DIR / "film"
+    film_dir = IMAGE_DIR / "videos" / save_ext / "film"
     film_dir.mkdir(exist_ok=True)
     concat_clip.write_videofile(str(film_dir / f"{unique_id}.mp4"))
 

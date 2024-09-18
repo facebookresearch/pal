@@ -78,6 +78,7 @@ class ExperimentConfig:
 
     # randomness
     seed: int = None
+    MAX_FFN_DIM: int = 2048
 
     # saving
     save_ext: str = None
@@ -142,7 +143,8 @@ def run_from_config(config: ExperimentConfig):
     # Consistent random initialization when varying ffn_dim
     nb_params = 2 * config.emb_dim + 2
     with torch.no_grad():
-        params = torch.rand(config.ffn_dim, nb_params)
+        params = torch.rand(config.MAX_FFN_DIM, nb_params)
+        params = params[: config.ffn_dim]
         params *= 2
         params -= 1
 
@@ -222,7 +224,7 @@ def run_from_config(config: ExperimentConfig):
 
     # Saving results
 
-    logger.info("Saving results.")
+    logger.info(f"Saving results in {save_dir}.")
     save_dir.mkdir(exist_ok=True, parents=True)
     pickle.dump(losses, open(save_dir / "losses.pkl", "wb"))
     pickle.dump(test_losses, open(save_dir / "test_losses.pkl", "wb"))
