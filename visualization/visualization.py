@@ -141,8 +141,8 @@ def generate_all_animations(
 
             ani_length = experiment["nb_epochs"]
             assert (
-                ani_length % num_tasks == 0
-            ), f"Number of tasks {num_tasks} does not divide the number of epochs {ani_length}."
+                ani_length % num_tasks_per_videos == 0
+            ), f"Number of tasks {num_tasks_per_videos} does not divide the number of epochs {ani_length}."
 
             block_length = ani_length // num_tasks_per_videos
             start_frame = (video_task_id - 1) * block_length
