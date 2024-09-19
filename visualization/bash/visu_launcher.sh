@@ -14,5 +14,4 @@
 #SBATCH --gpus-per-node=0
 #SBATCH --array=1-300
 
-# TODO: make it nicer
 python ./visualization.py all_animation --save-ext tmp --num-tasks $SLURM_ARRAY_TASK_COUNT --num-tasks-per-videos 100 --task-id $SLURM_ARRAY_TASK_ID --title-key batch_size
