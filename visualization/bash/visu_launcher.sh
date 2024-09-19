@@ -12,8 +12,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
 #SBATCH --gpus-per-node=1
-#SBATCH --array=1-50
+#SBATCH --array=1-90
 
 # TODO: make it nicer
-python ./visualization.py get_animation --unique-id 44581400e13d49c282334b08b6060382 --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID
-python ./visualization.py aggregate_video -unique-id 44581400e13d49c282334b08b6060382
+python ./visualization.py all_animation --save-ext tmp --num-tasks $SLURM_ARRAY_TASK_COUNT --num-tasks-per-videos 30 --task-id $SLURM_ARRAY_TASK_ID --title-key batch_size

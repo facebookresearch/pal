@@ -20,7 +20,7 @@ import moviepy.editor as mpy
 import numpy as np
 import torch
 import torch.nn.functional as F
-from configs import get_paths, recover_config
+from configs import get_paths, load_configs, recover_config
 from matplotlib import rc
 
 from factorization.config import IMAGE_DIR, USETEX
@@ -34,7 +34,10 @@ if USETEX:
     rc("text.latex", preamble=r"\usepackage{times}")
 
 
-def show_frame(unique_id: int, epoch: int, file_format: str = None, save_ext: str = None):
+# Front-end
+
+
+def show_frame(unique_id: int, epoch: int, file_format: str = None, save_ext: str = None, title: str = None):
     """
     Show a single frame for a given unique ID.
 
@@ -48,15 +51,24 @@ def show_frame(unique_id: int, epoch: int, file_format: str = None, save_ext: st
         File format for the image.
     save_ext
         Experiments folder identifier.
+    title
+        Title for the plot.
     """
     config = recover_config(unique_id, save_ext=save_ext)
     assert config["save_weights"], f"Weights were not saved for ID {unique_id}."
     assert epoch <= config["nb_epochs"], f"Epoch {epoch} is greater than the number of epochs {config['nb_epochs']}."
-    visualization_backend(unique_id, start_frame=epoch, end_frame=None, file_format=file_format, save_ext=save_ext)
+    visualization_backend(
+        unique_id, start_frame=epoch, end_frame=None, file_format=file_format, save_ext=save_ext, title=title
+    )
 
 
 def generate_animation(
-    unique_id: int, num_tasks: int = 1, task_id: int = 1, file_format: str = None, save_ext: str = None
+    unique_id: int,
+    num_tasks: int = 1,
+    task_id: int = 1,
+    file_format: str = None,
+    save_ext: str = None,
+    title: str = None,
 ):
     """
     Generate an animation for a given unique ID.
@@ -73,6 +85,8 @@ def generate_animation(
         Current task ID.
     save_ext
         Experiments folder identifier.
+    title
+        Title for the plot.
     """
     config = recover_config(unique_id, save_ext=save_ext)
     assert config["save_weights"], f"Weights were not saved for ID {unique_id}."
@@ -85,11 +99,110 @@ def generate_animation(
     start_frame = (task_id - 1) * block_length
     end_frame = task_id * block_length
 
-    visualization_backend(unique_id, start_frame, end_frame, file_format=file_format, save_ext=save_ext)
+    visualization_backend(unique_id, start_frame, end_frame, file_format=file_format, save_ext=save_ext, title=title)
+
+
+def generate_all_animations(
+    save_ext: str = None,
+    num_tasks: int = 1,
+    num_tasks_per_videos: int = 1,
+    task_id: int = 1,
+    file_format: str = None,
+    title_key: str = None,
+):
+    """
+    Generate all animations for a given configuration file.
+
+    Parameters
+    ----------
+    save_ext
+        Experiments folder identifier.
+    num_tasks
+        Number of tasks to divide the animation into.
+    num_tasks_per_videos
+        Number of tasks per video.
+    task_id
+        Current task ID.
+    file_format
+        File format for the video.
+    title_key
+        Key for the title in the configuration file.
+    """
+    all_configs = load_configs(save_ext)
+    ind = 0
+    for experiment in all_configs:
+        for video_task_id in range(1, num_tasks_per_videos + 1):
+            ind += 1
+            if ind % num_tasks != task_id - 1:
+                continue
+
+            unique_id = experiment["id"]
+            assert experiment["save_weights"], f"Weights were not saved for ID {unique_id}."
+
+            ani_length = experiment["nb_epochs"]
+            assert (
+                ani_length % num_tasks == 0
+            ), f"Number of tasks {num_tasks} does not divide the number of epochs {ani_length}."
+
+            block_length = ani_length // num_tasks_per_videos
+            start_frame = (video_task_id - 1) * block_length
+            end_frame = video_task_id * block_length
+
+            logger.info(f"Generating animation for ID {unique_id} from frame {start_frame} to frame {end_frame}.")
+            title = f"{title_key}: {experiment[title_key]}" if title_key is not None else None
+            visualization_backend(
+                unique_id, start_frame, end_frame, file_format=file_format, save_ext=save_ext, title=title
+            )
+
+
+def aggregate_video(unique_id: int, save_ext: str = None):
+    """
+    Aggregate videos for a given unique ID.
+
+    Parameters
+    ----------
+    unique_id
+        Unique identifier for the configuration file.
+    save_ext
+        Experiments folder identifier.
+    """
+    save_ext = save_ext if save_ext is not None else "base"
+    film_dir = IMAGE_DIR / "videos" / save_ext / "parts" / str(unique_id)
+    files_to_aggregate = sorted([str(file) for file in film_dir.iterdir() if file.is_file()])
+    logger.info(f"Aggregating {len(files_to_aggregate)} videos for ID {unique_id}.")
+    clips = [mpy.VideoFileClip(file) for file in files_to_aggregate]
+    concat_clip = mpy.concatenate_videoclips(clips)
+    film_dir = IMAGE_DIR / "videos" / save_ext / "film"
+    film_dir.mkdir(exist_ok=True)
+    concat_clip.write_videofile(str(film_dir / f"{unique_id}.mp4"))
+
+
+def aggregate_all_videos(save_ext: str = None):
+    """
+    Aggregate videos for a given unique ID.
+
+    Parameters
+    ----------
+    unique_id
+        Unique identifier for the configuration file.
+    save_ext
+        Experiments folder identifier.
+    """
+    all_configs = load_configs(save_ext)
+    for experiment in all_configs:
+        aggregate_video(experiment["id"], save_ext=save_ext)
+
+
+# Back-end
 
 
 def visualization_backend(
-    unique_id: int, start_frame: int, end_frame: int = None, file_format: str = None, save_ext: str = None
+    unique_id: int,
+    start_frame: int,
+    end_frame: int = None,
+    file_format: str = None,
+    save_ext: str = None,
+    title: str = None,
 ):
     """
     Backend for the visualization functions.
@@ -109,6 +222,8 @@ def visualization_backend(
         File format for the image or video.
     save_ext
         Experiments folder identifier.
+    title
+        Title for the plot.
     """
 
     # configuration and saved computations
@@ -185,6 +300,8 @@ def visualization_backend(
     HEIGHT = 20
 
     fig, axes = plt.subplots(4, 4, figsize=(WIDTH, HEIGHT))
+    if title is not None:
+        fig.suptitle(title)
 
     kwargs = {
         "text_fontsize": 8,
@@ -747,31 +864,6 @@ def show_acc(ax, acc, test_acc, **kwargs):
     ax.set_ylabel("Accuracy")
 
 
-# Aggregate videos
-
-
-def aggregate_video(unique_id: int, save_ext: str = None):
-    """
-    Aggregate videos for a given unique ID.
-
-    Parameters
-    ----------
-    unique_id
-        Unique identifier for the configuration file.
-    save_ext
-        Experiments folder identifier.
-    """
-    save_ext = save_ext if save_ext is not None else "base"
-    film_dir = IMAGE_DIR / "videos" / save_ext / "parts" / str(unique_id)
-    files_to_aggregate = sorted([str(file) for file in film_dir.iterdir() if file.is_file()])
-    logger.info(f"Aggregating {len(files_to_aggregate)} videos for ID {unique_id}.")
-    clips = [mpy.VideoFileClip(file) for file in files_to_aggregate]
-    concat_clip = mpy.concatenate_videoclips(clips)
-    film_dir = IMAGE_DIR / "videos" / save_ext / "film"
-    film_dir.mkdir(exist_ok=True)
-    concat_clip.write_videofile(str(film_dir / f"{unique_id}.mp4"))
-
-
 # CLI Wrapper
 
 
@@ -785,7 +877,9 @@ if __name__ == "__main__":
     fire.Fire(
         {
             "animation": generate_animation,
+            "all_animation": generate_all_animations,
             "frame": show_frame,
             "aggregate": aggregate_video,
+            "all_aggregate": aggregate_all_videos,
         }
     )

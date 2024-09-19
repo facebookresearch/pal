@@ -6,8 +6,8 @@
 #### Vivien's TODO
 
 We have settle on a random seed, 
-- show fine-grained visualization of test acc vs sweep axis
 - get visualization, and analyze them manually
+    - [ ] Start with one, then do all of them.
 
 - Code Amelioration
     - [ ] Write subfunctions for the visualization to be able to pick the ones we want. Load a json config file for the visualization.
