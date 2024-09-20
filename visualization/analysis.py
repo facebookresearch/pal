@@ -109,10 +109,8 @@ def show_ablation(seed: bool = False, key: str = "test_acc", file_format: str = 
         File format for the images.
     """
     all_data = {}
-    exp_ids = ["batch_size", "ffn_bias", "ffn_dim", "ffn_dropout", "lr", "mlp_lr"]
     exp_ids = ["batch_size", "ffn_dim", "lr", "mlp_lr"]
-    exp_ids = [tmp + "_89" for tmp in exp_ids]
-    group_keys = ["batch_size", "ffn_bias", "ffn_dim", "ffn_dropout", "lr", "mlp_lr_discount", "seed", "id"]
+    group_keys = ["batch_size", "ffn_dim", "lr", "mlp_lr_discount", "seed", "id"]
 
     for exp_id in exp_ids:
         logger.info(f"Loading data for {exp_id}.")
@@ -126,7 +124,7 @@ def show_ablation(seed: bool = False, key: str = "test_acc", file_format: str = 
     all_seeds = np.unique(all_data[exp_ids[0]]["seed"])
     nb_epochs = all_data[exp_ids[0]]["epoch"].max()
 
-    group_keys = ["batch_size", "ffn_bias", "ffn_dim", "ffn_dropout", "lr", "mlp_lr_discount"]
+    group_keys = ["batch_size", "ffn_dim", "lr", "mlp_lr_discount"]
     log_keys = ["batch_size", "ffn_dim", "lr", "mlp_lr_discount"]
     if seed:
         for seed in all_seeds:
@@ -136,7 +134,6 @@ def show_ablation(seed: bool = False, key: str = "test_acc", file_format: str = 
             fig, axes = plt.subplots(1, len(exp_ids), figsize=(5 * len(exp_ids), 5))
             for i, exp_id in enumerate(exp_ids):
                 mean, std = extract_averaged_info(all_data[exp_id], group_keys, **kwargs)
-                exp_id = exp_id.replace("_89", "")
                 if exp_id == "mlp_lr":
                     exp_id = "mlp_lr_discount"
                 axes[i].plot(mean[exp_id], mean[key])
