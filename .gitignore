@@ -9,10 +9,18 @@ dist
 # Saving directory
 launchers/
 savings/
+logs/
 
 # Saved files
 configs.jsonl
+*.jsonl
+*.pkl
+*.pt
 *.npy
 *.pdf
 *.png
+*.gif
+*.mp4
 *.zip
+*.err
+*.out
