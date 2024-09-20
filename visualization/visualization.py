@@ -923,6 +923,8 @@ def show_mlp_emitters(ax, kwargs):
 def show_mlp_output(ax, kwargs):
     pos_seq_mlp = kwargs["pos_seq_mlp"]
     neg_seq_mlp = kwargs["neg_seq_mlp"]
+    pos_seq_res = kwargs["pos_seq_res"]
+    neg_seq_res = kwargs["neg_seq_res"]
     pos_inputs = kwargs["pos_inputs"]
     neg_inputs = kwargs["neg_inputs"]
     ax.scatter(
@@ -947,7 +949,25 @@ def show_mlp_output(ax, kwargs):
     for i, (x, y) in enumerate(neg_seq_mlp):
         t = ax.text(x, y, neg_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
         t.set_alpha(0.3)
-    ax.grid()
+
+    ax.scatter(
+        pos_seq_res[:, 0],
+        pos_seq_res[:, 1],
+        c=np.arange(pos_seq_res.shape[0]),
+        marker=kwargs["pos_marker"],
+        cmap="tab20b",
+        s=100,
+        alpha=0.2,
+    )
+    ax.scatter(
+        neg_seq_res[:, 0],
+        neg_seq_res[:, 1],
+        c=np.arange(neg_seq_res.shape[0]),
+        marker=kwargs["neg_marker"],
+        cmap="tab20b",
+        s=100,
+        alpha=0.2,
+    )
     ax.set_title("Transformed Sequences with residual", fontsize=kwargs["title_fontsize"])
 
 
