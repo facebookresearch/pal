@@ -328,6 +328,8 @@ def run_grid(
     num_tasks: int = 1,
     task_id: int = 1,
     ablation: str = None,
+    save_weight: bool = False,
+    nb_seeds: int = 1,
 ) -> None:
     """
     Run a grid of configurations for training.
@@ -340,6 +342,10 @@ def run_grid(
         The ID of the current task.
     ablation:
         Type of ablation study to perform.
+    save_weight:
+        Whether to save the weights.
+    nb_seeds:
+        The number of seeds to run.
     """
     grid = {
         "vocab_size": [2],
@@ -356,29 +362,24 @@ def run_grid(
         "ffn_bias": [True],
         "ffn_dropout": [0],
         "activation": ["gelu"],
-        "seed": range(100),
-        "save_weights": [False],
+        "seed": range(nb_seeds),
+        "save_weights": [save_weight],
     }
-
-    # grid["seed"] = [89]
-    grid["save_weights"] = [True]
 
     if ablation == "batch_size":
         grid["batch_size"] = np.logspace(0, 11, num=12, base=2).astype(int).tolist()
-        grid["batch_size"] = np.logspace(3, 6, num=20, base=2).astype(int)[1:].tolist()
     elif ablation == "lr":
         grid["lr"] = np.logspace(0, -4, num=20).tolist()
-        grid["lr"] = np.logspace(-2, -3, num=20).tolist()
     elif ablation == "mlp_lr":
         grid["mlp_lr_discount"] = np.logspace(-2, 2, num=20).tolist()
-        grid["mlp_lr_discount"] = np.logspace(-1, 1, num=20).tolist()
     elif ablation == "ffn_dim":
         grid["ffn_dim"] = np.logspace(1, 3, 20).astype(int).tolist()
-        grid["ffn_dim"] = np.logspace(1, 2.1, 20).astype(int).tolist()
     elif ablation == "ffn_bias":
         grid["ffn_bias"] = [True, False]
     elif ablation == "ffn_dropout":
         grid["ffn_dropout"] = np.linspace(0, 0.9, 20).tolist()
+    elif ablation == "seed":
+        grid["seed"] = range(100)
 
     # ablation = ablation + "_89"
 
