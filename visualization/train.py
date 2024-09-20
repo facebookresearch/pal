@@ -383,9 +383,8 @@ def run_grid(
 
     # ablation = ablation + "_89"
 
-    all_configs = product(*grid.values())
-
-    logger.info(f"Running {len(list(all_configs))} configurations with {num_tasks} tasks.")
+    nb_configs = sum(1 for _ in product(*grid.values()))
+    logger.info(f"Running {nb_configs} configurations with {num_tasks} tasks.")
     logger.info(f"Ablation mode is {ablation}.")
 
     for i, values in enumerate(product(*grid.values())):

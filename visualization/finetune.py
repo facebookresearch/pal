@@ -8,14 +8,13 @@ import traceback
 import uuid
 from dataclasses import asdict, dataclass
 from itertools import product
-from pathlib import Path
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from factorization.config import DEVICE, SAVE_DIR
+from factorization.config import CONFIG_DIR, DEVICE, SAVE_DIR
 from factorization.data.modular import DataloaderConfig, SMADataloader
 from factorization.models.softmax_model import Model, ModelConfig
 
@@ -281,7 +280,9 @@ def run_experiments(
 def run_grid(
     num_tasks: int = 1,
     task_id: int = 1,
-    ablation: str = None,
+    save_ext: str = None,
+    save_weight: bool = False,
+    nb_seeds: int = 1,
 ) -> None:
     """
     Run a grid of configurations for training.
@@ -295,43 +296,54 @@ def run_grid(
     ablation:
         Type of ablation study to perform.
     """
-    raise NotImplementedError("This function is not implemented yet.")
-    # grid = {
-    #     "vocab_size": [2],
-    #     "seq_length": [12],
-    #     "sparsity_index": [5],
-    #     "nb_data": [2048],
-    #     "batch_size": [32],
-    #     "nb_epochs": [1_000],
-    #     "lr": [3e-3],
-    #     "mlp_lr_discount": [None],
-    #     "emb_dim": [2],
-    #     "nb_emb": [3],
-    #     "ffn_dim": [32],
-    #     "ffn_bias": [True],
-    #     "ffn_dropout": [0],
-    #     "activation": ["gelu"],
-    #     "seed": range(100),
-    #     "unique_id": list(Path(SAVE_DIR).)
-    #     "save_weights": [False],
-    # }
+    # raise NotImplementedError("This function is not implemented yet.")
+    grid = {
+        "save_ext": [save_ext],
+        "vocab_size": [3],
+        "sparsity_index": [None],
+        "nb_data": [None],
+        "batch_size": [None],
+        "nb_epochs": [None],
+        "lr": [None],
+        "mlp_lr_discount": [None],
+        "seed": range(nb_seeds),
+        "save_weights": [save_weight],
+    }
 
-    # Load all previous pretrained configurations
-    all_configs = [json.load(config.as_posix()) for config in Path(SAVE_DIR).glob("*/config.json")]
+    inherited_keys = ["sparsity_index", "nb_data", "batch_size", "nb_epochs", "lr", "mlp_lr_discount"]
 
-    logger.info(f"Running {len(list(all_configs))} configurations with {num_tasks} tasks.")
-    logger.info(f"Ablation mode is {ablation}.")
-
-    for i, values in enumerate(all_configs):
-        # Handling the grid concurrently with many tasks
-        if i % num_tasks != (task_id - 1):
+    # Recover pretrained configs
+    config_file = CONFIG_DIR / f"{save_ext}.jsonl"
+    with open(config_file, "r") as f:
+        lines = f.readlines()
+    pretrained_configs = []
+    for line in lines:
+        try:
+            config = json.loads(line)
+            pretrained_configs.append(config)
+        except json.JSONDecodeError:
             continue
 
-        # setup configuration
-        kwargs = values
-        kwargs["interactive"] = False
-        kwargs["save_ext"] = ablation
-        config = FinetuneConfig(**kwargs)
+    nb1 = sum(1 for _ in product(*grid.values()))
+    nb2 = len(pretrained_configs)
+    logger.info(f"Running {nb1}x{nb2} configurations with {num_tasks} tasks.")
+
+    # iterate over configurations and grid values.
+    ind = 0
+    for values in product(*grid.values()):
+        for config in pretrained_configs:
+            ind += 1
+            if ind % num_tasks != (task_id - 1):
+                continue
+
+            # setup configuration
+            kwargs = dict(zip(grid.keys(), values))
+            kwargs["unique_id"] = config["id"]
+            kwargs["interactive"] = False
+            for key in inherited_keys:
+                if kwargs[key] is None:
+                    kwargs[key] = config[key]
+            config = FinetuneConfig(**kwargs)
 
         logger.info(f"{config=}")
 

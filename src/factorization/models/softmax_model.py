@@ -158,7 +158,6 @@ class TransformerFeedForward(nn.Module):
             Random uniform parameters between -1 and 1 to initialize the model.
         """
         ffn_dim, emb_dim = self.fc1.weight.size()
-        print(emb_dim, ffn_dim)
 
         bound = 1 / math.sqrt(emb_dim)
         w1 = params[:, :emb_dim]
