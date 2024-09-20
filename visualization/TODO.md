@@ -12,3 +12,12 @@
     - why and how do we get loss spikes?
 - Write the paper.
 - Get nice plots for the paper.
+
+Do some scripts to emulate the following:
+ - first runs without saving weights
+ - iteration over the different configurations
+    - recover test losses
+    - if not good, remove the configuration (or split into winning config and failling config).
+- then relaunch training to save the weights for the one that have worked.
+
+Same for the finetuning only launch from successful runs.
