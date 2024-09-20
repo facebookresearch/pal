@@ -11,9 +11,9 @@
 # python /private/home/vivc/code/memory-theory/visualization/configs.py --save-ext mlp_lr
 # python /private/home/vivc/code/memory-theory/visualization/configs.py --save-ext seed
 
-# python /private/home/vivc/code/memory-theory/visualization/analysis.py ablation --seed True
-# python /private/home/vivc/code/memory-theory/visualization/analysis.py ablation --seed False --key test_acc
-# python /private/home/vivc/code/memory-theory/visualization/analysis.py ablation --seed False --key success
+# python /private/home/vivc/code/memory-theory/visualization/analysis.py ablation --seed
+# python /private/home/vivc/code/memory-theory/visualization/analysis.py ablation --noseed --key test_acc
+# python /private/home/vivc/code/memory-theory/visualization/analysis.py ablation --noseed --key success
 
 # sbatch /private/home/vivc/code/memory-theory/launchers/visu_bsz.sh
 # sbatch /private/home/vivc/code/memory-theory/launchers/visu_dim.sh
@@ -21,9 +21,6 @@
 # sbatch /private/home/vivc/code/memory-theory/launchers/visu_mlp.sh
 # sbatch /private/home/vivc/code/memory-theory/launchers/visu_seed.sh
 
-# python /private/home/vivc/code/memory-theory/visualization/visualization.py all_aggregate --save-ext batch_size
-# python /private/home/vivc/code/memory-theory/visualization/visualization.py all_aggregate --save-ext ffn_dim
-# python /private/home/vivc/code/memory-theory/visualization/visualization.py all_aggregate --save-ext lr
-# python /private/home/vivc/code/memory-theory/visualization/visualization.py all_aggregate --save-ext mlp_lr
-# python /private/home/vivc/code/memory-theory/visualization/visualization.py all_aggregate --save-ext seed
+# sbatch /private/home/vivc/code/memory-theory/launchers/aggregate.sh
 
+# sbatch /private/home/vivc/code/memory-theory/launchers/finetune_seed.sh

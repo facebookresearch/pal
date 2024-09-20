@@ -1,9 +1,9 @@
 #!/usr/bin/bash
 
 # Logging configuration
-#SBATCH --job-name=mlp
-#SBATCH --output=/checkpoint/%u/visu/mlp/%A/%a.out
-#SBATCH --error=/checkpoint/%u/visu/mlp/%A/%a.err
+#SBATCH --job-name=finetune
+#SBATCH --output=/checkpoint/%u/visu/finetune/%A/%a.out
+#SBATCH --error=/checkpoint/%u/visu/finetune/%A/%a.err
 #SBATCH --mail-type=END
 #SBATCH --mail-user=%u@meta.com
 
@@ -17,4 +17,4 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --array=1-500
 
-python /private/home/vivc/code/memory-theory/visualization/train.py grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID --ablation mlp_lr --nb-seeds 100
+python /private/home/vivc/code/memory-theory/visualization/finetune.py grid --save-ext seed --nb-seeds 10 --save-weight

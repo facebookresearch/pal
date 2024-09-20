@@ -2,8 +2,8 @@
 
 # Logging configuration
 #SBATCH --job-name=video-dim
-#SBATCH --output=/checkpoint/%u/video/%j-%a.out
-#SBATCH --error=/checkpoint/%u/video/%j-%a.err
+#SBATCH --output=/checkpoint/%u/video/%A/%a.out
+#SBATCH --error=/checkpoint/%u/video/%A/%a.err
 
 # Job specification
 #SBATCH --partition=scavenge

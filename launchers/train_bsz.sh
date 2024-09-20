@@ -2,8 +2,8 @@
 
 # Logging configuration
 #SBATCH --job-name=bsz
-#SBATCH --output=/checkpoint/%u/visu/bsz/%j-%a.out
-#SBATCH --error=/checkpoint/%u/visu/bsz/%j-%a.err
+#SBATCH --output=/checkpoint/%u/visu/bsz/%A/%a.out
+#SBATCH --error=/checkpoint/%u/visu/bsz/%A/%a.err
 #SBATCH --mail-type=END
 #SBATCH --mail-user=%u@meta.com
 
@@ -17,5 +17,4 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --array=1-500
 
-
-python /private/home/vivc/code/memory-theory/visualization/train.py grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID --ablation batch_size
+python /private/home/vivc/code/memory-theory/visualization/train.py grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID --ablation batch_size --nb-seeds 100
