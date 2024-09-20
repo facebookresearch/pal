@@ -217,6 +217,9 @@ class ModelConfig:
     ffn_bias: bool = False
     ffn_dropout: float = 0
 
+    def __init__(self, **kwargs):
+        self.__dict__.update((k, v) for k, v in kwargs.items() if k in self.__annotations__)
+
     def __post_init__(self):
         if self.ffn_dim is None:
             self.ffn_dim = 4 * self.emb_dim
