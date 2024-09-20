@@ -12,8 +12,10 @@
 
 #### Vivien's TODO
 
+- Write the script for the finetuning experiments.
+
 - Code Amelioration
-    - [ ] Write subfunctions for the visualization to be able to pick the ones we want. Load a json config file for the visualization.
+    - [x] Write subfunctions for the visualization to be able to pick the ones we want. Load a json config file for the visualization.
 
 - Fine-tuning
     - [ ] write some fine-tuning experiments.

@@ -190,7 +190,11 @@ def aggregate_all_videos(save_ext: str = None):
     """
     all_configs = load_configs(save_ext)
     for experiment in all_configs:
-        aggregate_video(experiment["id"], save_ext=save_ext)
+        try:
+            aggregate_video(experiment["id"], save_ext=save_ext)
+        except Exception as e:
+            logger.error(f"Error for ID {experiment['id']}: {e}")
+            continue
 
 
 # Back-end
@@ -203,6 +207,7 @@ def visualization_backend(
     file_format: str = None,
     save_ext: str = None,
     title: str = None,
+    plot_config: str = None,
 ):
     """
     Backend for the visualization functions.
@@ -224,6 +229,8 @@ def visualization_backend(
         Experiments folder identifier.
     title
         Title for the plot.
+    plot_config
+        Configuration for the plot.
     """
 
     # configuration and saved computations
@@ -294,12 +301,56 @@ def visualization_backend(
     X_out, Y_out = torch.meshgrid(tmpx, tmpy)
     grid_out = torch.stack([X_out, Y_out], dim=-1).to(DEVICE).view(-1, 2)
 
-    # create Animation
+    # plot configurations
 
-    WIDTH = 20
-    HEIGHT = 20
+    plot_functions = {
+        "show_token_emb": show_token_emb,
+        "show_pos_emb": show_pos_emb,
+        "show_emb": show_emb,
+        "show_norm_emb": show_norm_emb,
+        "show_attn": show_attn,
+        "show_value": show_value,
+        "show_seq_emb": show_seq_emb,
+        "show_level_line": show_level_line,
+        "show_norm_input": show_norm_input,
+        "show_mlp_receptors": show_mlp_receptors,
+        "show_mlp_emitters": show_mlp_emitters,
+        "show_mlp_output": show_mlp_output,
+        "show_output_level_lines": show_output_level_lines,
+        "show_output": show_output,
+        "show_loss": show_loss,
+        "show_acc": show_acc,
+    }
 
-    fig, axes = plt.subplots(4, 4, figsize=(WIDTH, HEIGHT))
+    if plot_config is None:
+        plot_config = {
+            "grid_size": [4, 4],
+            "plots": [
+                {"type": "show_token_emb", "position": [0, 0]},
+                {"type": "show_pos_emb", "position": [0, 1]},
+                {"type": "show_emb", "position": [0, 2]},
+                {"type": "show_norm_emb", "position": [0, 3]},
+                {"type": "show_attn", "position": [1, 0]},
+                {"type": "show_value", "position": [1, 1]},
+                {"type": "show_seq_emb", "position": [1, 2]},
+                {"type": "show_level_line", "position": [1, 3]},
+                {"type": "show_norm_input", "position": [2, 0]},
+                {"type": "show_mlp_receptors", "position": [2, 1]},
+                {"type": "show_mlp_emitters", "position": [2, 2]},
+                {"type": "show_mlp_output", "position": [2, 3]},
+                {"type": "show_output_level_lines", "position": [3, 0]},
+                {"type": "show_output", "position": [3, 1]},
+                {"type": "show_loss", "position": [3, 2]},
+                {"type": "show_acc", "position": [3, 3]},
+            ],
+        }
+
+    grid_size = config["grid_size"]
+    plot_requests = config["plots"]
+
+    WIDTH = 5 * grid_size[1]
+    HEIGHT = 5 * grid_size[0]
+    fig, axes = plt.subplots(*grid_size, figsize=(WIDTH, HEIGHT))
     if title is not None:
         fig.suptitle(title)
 
@@ -308,12 +359,27 @@ def visualization_backend(
         "title_fontsize": 12,
         "pos_marker": "o",
         "neg_marker": "s",
+        "sparsity_index": sparsity_index,
+        "length": length,
+        "ffn_dim": ffn_dim,
+        "pos_inputs": pos_inputs,
+        "neg_inputs": neg_inputs,
+        "inputs": inputs,
+        "X_mlp": X_mlp,
+        "Y_mlp": Y_mlp,
+        "X_out": X_out,
+        "Y_out": Y_out,
+        "losses": losses,
+        "test_losses": test_losses,
+        "accs": accs,
+        "test_accs": test_accs,
     }
 
+    # frame creation
+
     def update(frame):
-        for i in range(4):
-            for j in range(4):
-                axes[i, j].clear()
+        for ax in axes.flat:
+            ax.clear()
 
         token_emb = weights[frame]["token_emb.weight"][:vocab_size]
         pos_emb = weights[frame]["pos_emb.weight"]
@@ -345,61 +411,44 @@ def visualization_backend(
             pos_seq_prob = F.softmax(model.output(pos_seq_res), dim=-1)[:, :vocab_size]
             neg_seq_prob = F.softmax(model.output(neg_seq_res), dim=-1)[:, :vocab_size]
 
-        ind = (0, 0)
-        show_token_emb(axes[*ind], token_emb, **kwargs)
+        frame_data = {
+            "token_emb": token_emb,
+            "pos_emb": pos_emb,
+            "emb": emb,
+            "norm_emb": norm_emb,
+            "query": query,
+            "attn": attn,
+            "emb_val": emb_val,
+            "pos_seq_emb": pos_seq_emb,
+            "neg_seq_emb": neg_seq_emb,
+            "norm_pos_seq": norm_pos_seq,
+            "norm_neg_seq": norm_neg_seq,
+            "fc1": fc1,
+            "fc2": fc2,
+            "pos_seq_mlp": pos_seq_mlp,
+            "neg_seq_mlp": neg_seq_mlp,
+            "pos_seq_res": pos_seq_res,
+            "neg_seq_res": neg_seq_res,
+            "out_mlp": out_mlp,
+            "out_out": out_out,
+            "pos_seq_prob": pos_seq_prob,
+            "neg_seq_prob": neg_seq_prob,
+        } | kwargs
 
-        ind = (0, 1)
-        show_pos_emb(axes[*ind], pos_emb, sparsity_index, length, **kwargs)
+        for plot_request in plot_requests:
+            plot_type = plot_request["type"]
+            position = tuple(plot_request["position"])
+            plot_func = plot_functions.get(plot_type)
 
-        ind = (0, 2)
-        show_emb(axes[*ind], emb, sparsity_index, length, **kwargs)
-
-        ind = (0, 3)
-        show_norm_emb(axes[*ind], norm_emb, query, sparsity_index, length, **kwargs)
-
-        ind = (1, 0)
-        show_attn(axes[*ind], attn, **kwargs)
-
-        ind = (1, 1)
-        show_value(axes[*ind], emb_val, sparsity_index, length, **kwargs)
-
-        ind = (1, 2)
-        show_seq_emb(axes[*ind], pos_seq_emb, neg_seq_emb, pos_inputs, neg_inputs, **kwargs)
-
-        ind = (1, 3)
-        show_level_line(axes[*ind], X_mlp, Y_mlp, out_mlp, pos_seq_emb, neg_seq_emb, pos_inputs, neg_inputs, **kwargs)
-
-        ind = (2, 0)
-        show_norm_input(axes[*ind], norm_pos_seq, norm_neg_seq, pos_inputs, neg_inputs, **kwargs)
-
-        ind = (2, 1)
-        show_mlp_receptors(axes[*ind], fc1, norm_pos_seq, norm_neg_seq, ffn_dim, **kwargs)
-
-        ind = (2, 2)
-        show_mlp_emitters(axes[*ind], fc2, fc1, norm_pos_seq, norm_neg_seq, ffn_dim, **kwargs)
-
-        ind = (2, 3)
-        show_mlp_output(
-            axes[*ind], pos_seq_mlp, neg_seq_mlp, pos_seq_res, neg_seq_res, pos_inputs, neg_inputs, **kwargs
-        )
-
-        ind = (3, 0)
-        show_output_level_lines(
-            axes[*ind], X_out, Y_out, out_out, pos_seq_mlp, neg_seq_mlp, pos_inputs, neg_inputs, **kwargs
-        )
-
-        ind = (3, 1)
-        show_output(axes[*ind], pos_seq_prob, neg_seq_prob, inputs, **kwargs)
-
-        ind = (3, 2)
-        show_loss(axes[*ind], losses[: frame + 1], test_losses[: frame + 1], **kwargs)
-
-        ind = (3, 3)
-        show_acc(axes[*ind], accs[: frame + 1], test_accs[: frame + 1], **kwargs)
+            if plot_func:
+                ax = axes[position]
+                plot_func(ax, **frame_data)
+            else:
+                logger.info(f"Plot type {plot_type} not recognized.")
 
     if end_frame is None:
         update(start_frame)
-        save_dir = IMAGE_DIR / "frames"
+        save_dir = IMAGE_DIR / "frames" / save_ext
         save_dir.mkdir(exist_ok=True, parents=True)
         if file_format is None:
             file_format = "pdf"
