@@ -345,8 +345,8 @@ def visualization_backend(
             ],
         }
 
-    grid_size = config["grid_size"]
-    plot_requests = config["plots"]
+    grid_size = plot_config["grid_size"]
+    plot_requests = plot_config["plots"]
 
     WIDTH = 5 * grid_size[1]
     HEIGHT = 5 * grid_size[0]
@@ -412,6 +412,7 @@ def visualization_backend(
             neg_seq_prob = F.softmax(model.output(neg_seq_res), dim=-1)[:, :vocab_size]
 
         frame_data = {
+            "frame": frame,
             "token_emb": token_emb,
             "pos_emb": pos_emb,
             "emb": emb,
@@ -895,18 +896,18 @@ def show_output(ax, pos_seq_prob, neg_seq_prob, inputs, **kwargs):
     ax.set_title("Output", fontsize=kwargs["title_fontsize"])
 
 
-def show_loss(ax, loss, test_loss, **kwargs):
-    ax.plot(loss, label="train")
-    ax.plot(test_loss, label="test")
+def show_loss(ax, frame, losses, test_losses, **kwargs):
+    ax.plot(losses[:frame:], label="train")
+    ax.plot(test_losses[:frame], label="test")
     ax.set_title("Loss", fontsize=kwargs["title_fontsize"])
     ax.legend()
     ax.set_xlabel("Iterations")
     ax.set_ylabel("Loss")
 
 
-def show_acc(ax, acc, test_acc, **kwargs):
-    ax.plot(acc, label="train")
-    ax.plot(test_acc, label="test")
+def show_acc(ax, frame, accs, test_accs, **kwargs):
+    ax.plot(accs[:frame], label="train")
+    ax.plot(test_accs[:frame], label="test")
     ax.set_title("Accuracy", fontsize=kwargs["title_fontsize"])
     ax.legend()
     ax.set_xlabel("Iterations")

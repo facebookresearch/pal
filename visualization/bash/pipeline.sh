@@ -12,7 +12,7 @@ python ../analysis.py losses --save-ext test --file-format png
 while read line; do
   name=$(echo $line | jq '.id')
   python ../visualization.py frame --epoch 100 --file-format png --save-ext test --unique-id $name
-done < ../../savings/configs/tmp.jsonl
+done < ../../savings/configs/test.jsonl
 
 
 python ../visualization.py all_animation --save-ext test --num-tasks-per-videos 10 --title-key batch_size
