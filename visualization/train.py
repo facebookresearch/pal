@@ -360,7 +360,7 @@ def run_grid(
         "save_weights": [False],
     }
 
-    grid["seed"] = [89]
+    # grid["seed"] = [89]
     grid["save_weights"] = [True]
 
     if ablation == "batch_size":
@@ -380,7 +380,7 @@ def run_grid(
     elif ablation == "ffn_dropout":
         grid["ffn_dropout"] = np.linspace(0, 0.9, 20).tolist()
 
-    ablation = ablation + "_89"
+    # ablation = ablation + "_89"
 
     all_configs = product(*grid.values())
 

@@ -71,7 +71,7 @@ def aggregate_configs(save_ext: str = None) -> None:
                 logger.warning(e)
                 continue
 
-    CONFIG_DIR.mkdir(exist_ok=True, parents=True)
+    agg_config_file.parent.mkdir(exist_ok=True, parents=True)
     logging.info(f"Saving config in {agg_config_file}")
     with open(agg_config_file, "w") as f:
         for config in all_configs:

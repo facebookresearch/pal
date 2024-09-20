@@ -97,16 +97,18 @@ def run_from_config(config: FinetuneConfig):
         load_dir = SAVE_DIR / config.save_ext / config.unique_id
         save_dir = SAVE_DIR / "finetune" / config.save_ext / unique_id
 
+    # Load pretrained config, and save config
+
+    cfg = json.load(open(load_dir / "config.json", "r"))
+    cfg["original_id"] = cfg["id"]
     save_dir.mkdir(exist_ok=True, parents=True)
     with open(save_dir / "config.json", "w") as f:
-        json.dump(asdict(config) | {"id": unique_id}, f)
+        json.dump(cfg | asdict(config) | {"id": unique_id}, f)
 
     # Pretrained model
 
-    cfg = json.load(open(load_dir / "config.json", "r"))
     cfg["vocab_size"] = cfg["nb_emb"]
     cfg = ModelConfig(**cfg)
-
     logger.info(f"Instanciating model with config: {cfg}.")
     model = Model(cfg)
 
