@@ -291,16 +291,6 @@ def visualization_backend(
     pos_inputs = inputs[targets == 1]
     neg_inputs = inputs[targets == 0]
 
-    tmpx = torch.linspace(-1, 1, 50)
-    tmpy = torch.linspace(-1, 1, 50)
-    X_mlp, Y_mlp = torch.meshgrid(tmpx, tmpy)
-    grid_mlp = torch.stack([X_mlp, Y_mlp], dim=-1).to(DEVICE).view(-1, 2)
-
-    tmpx = torch.linspace(-2.5, 2.5, 50)
-    tmpy = torch.linspace(-3.5, 2.5, 50)
-    X_out, Y_out = torch.meshgrid(tmpx, tmpy)
-    grid_out = torch.stack([X_out, Y_out], dim=-1).to(DEVICE).view(-1, 2)
-
     # plot configurations
 
     plot_functions = {
@@ -405,6 +395,28 @@ def visualization_backend(
 
             pos_seq_res = pos_seq_emb + pos_seq_mlp
             neg_seq_res = neg_seq_emb + neg_seq_mlp
+
+            xlim = (min(pos_seq_emb[:, 0].min(), neg_seq_res[:, 0].min()),
+                    max(pos_seq_emb[:, 0].max(), neg_seq_res[:, 0].max()))
+            xdelta = (xlim[1] - xlim[0]) * 0.1
+            ylim = (min(pos_seq_emb[:, 1].min(), neg_seq_res[:, 1].min()),
+                    max(pos_seq_emb[:, 1].max(), neg_seq_res[:, 1].max()))
+            ydelta = (ylim[1] - ylim[0]) * 0.1
+            tmpx = torch.linspace(xlim[0] - xdelta, xlim[1] + xdelta, 50)
+            tmpy = torch.linspace(ylim[0] - ydelta, ylim[1] + ydelta, 50)
+            X_mlp, Y_mlp = torch.meshgrid(tmpx, tmpy)
+            grid_mlp = torch.stack([X_mlp, Y_mlp], dim=-1).to(DEVICE).view(-1, 2)
+
+            xlim = (min(pos_seq_res[:, 0].min(), neg_seq_res[:, 0].min()),
+                    max(pos_seq_res[:, 0].max(), neg_seq_res[:, 0].max()))
+            xdelta = (xlim[1] - xlim[0]) * 0.1
+            ylim = (min(pos_seq_res[:, 1].min(), neg_seq_res[:, 1].min()),
+                    max(pos_seq_res[:, 1].max(), neg_seq_res[:, 1].max()))
+            ydelta = (ylim[1] - ylim[0]) * 0.1
+            tmpx = torch.linspace(xlim[0] - xdelta, xlim[1] + xdelta, 50)
+            tmpy = torch.linspace(ylim[0] - ydelta, ylim[1] + ydelta, 50)
+            X_out, Y_out = torch.meshgrid(tmpx, tmpy)
+            grid_out = torch.stack([X_out, Y_out], dim=-1).to(DEVICE).view(-1, 2)
 
             out_mlp = F.softmax(model.output(grid_mlp + model.mlp(norm(grid_mlp))), dim=-1)[..., 1].view(X_mlp.shape)
             out_out = F.softmax(model.output(grid_out), dim=-1)[..., 1].view(X_out.shape)
