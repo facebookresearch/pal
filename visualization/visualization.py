@@ -443,11 +443,14 @@ class ComputationCache:
         return inputs[targets == 0]
 
     def get_mlp_meshgrid(self):
-        xlim = (min(pos_seq_emb[:, 0].min(), neg_seq_res[:, 0].min()),
-                max(pos_seq_emb[:, 0].max(), neg_seq_res[:, 0].max()))
+        pos_seq_emb = self["pos_seq_emb"]
+        neg_seq_emb = self["neg_seq_emb"]
+
+        xlim = (min(pos_seq_emb[:, 0].min(), neg_seq_emb[:, 0].min()),
+                max(pos_seq_emb[:, 0].max(), neg_seq_emb[:, 0].max()))
         xdelta = (xlim[1] - xlim[0]) * 0.1
-        ylim = (min(pos_seq_emb[:, 1].min(), neg_seq_res[:, 1].min()),
-                max(pos_seq_emb[:, 1].max(), neg_seq_res[:, 1].max()))
+        ylim = (min(pos_seq_emb[:, 1].min(), neg_seq_emb[:, 1].min()),
+                max(pos_seq_emb[:, 1].max(), neg_seq_emb[:, 1].max()))
         ydelta = (ylim[1] - ylim[0]) * 0.1
         tmpx = torch.linspace(xlim[0] - xdelta, xlim[1] + xdelta, 50)
         tmpy = torch.linspace(ylim[0] - ydelta, ylim[1] + ydelta, 50)
@@ -466,14 +469,14 @@ class ComputationCache:
         return torch.stack([X_mlp, Y_mlp], dim=-1).to(DEVICE).view(-1, 2)
 
     def get_out_meshgrid(self):
-        pos_seq_res = self["pos_seq_res"]
-        neg_seq_res = self["neg_seq_res"]
+        pos_seq_mlp = self["pos_seq_mlp"]
+        neg_seq_mlp = self["neg_seq_mlp"]
 
-        xlim = (min(pos_seq_res[:, 0].min(), neg_seq_res[:, 0].min()),
-                max(pos_seq_res[:, 0].max(), neg_seq_res[:, 0].max()))
+        xlim = (min(pos_seq_mlp[:, 0].min(), neg_seq_mlp[:, 0].min()),
+                max(pos_seq_mlp[:, 0].max(), neg_seq_mlp[:, 0].max()))
         xdelta = (xlim[1] - xlim[0]) * 0.1
-        ylim = (min(pos_seq_res[:, 1].min(), neg_seq_res[:, 1].min()),
-                max(pos_seq_res[:, 1].max(), neg_seq_res[:, 1].max()))
+        ylim = (min(pos_seq_mlp[:, 1].min(), neg_seq_mlp[:, 1].min()),
+                max(pos_seq_mlp[:, 1].max(), neg_seq_mlp[:, 1].max()))
         ydelta = (ylim[1] - ylim[0]) * 0.1
         tmpx = torch.linspace(xlim[0] - xdelta, xlim[1] + xdelta, 50)
         tmpy = torch.linspace(ylim[0] - ydelta, ylim[1] + ydelta, 50)
