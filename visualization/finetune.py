@@ -8,6 +8,7 @@ import traceback
 import uuid
 from dataclasses import asdict, dataclass
 from itertools import product
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -295,59 +296,39 @@ def run_grid(
         Type of ablation study to perform.
     """
     raise NotImplementedError("This function is not implemented yet.")
-    grid = {
-        "vocab_size": [2],
-        "seq_length": [12],
-        "sparsity_index": [5],
-        "nb_data": [2048],
-        "batch_size": [32],
-        "nb_epochs": [1_000],
-        "lr": [3e-3],
-        "mlp_lr_discount": [None],
-        "emb_dim": [2],
-        "nb_emb": [3],
-        "ffn_dim": [32],
-        "ffn_bias": [True],
-        "ffn_dropout": [0],
-        "activation": ["gelu"],
-        "seed": range(100),
-        "save_weights": [False],
-    }
+    # grid = {
+    #     "vocab_size": [2],
+    #     "seq_length": [12],
+    #     "sparsity_index": [5],
+    #     "nb_data": [2048],
+    #     "batch_size": [32],
+    #     "nb_epochs": [1_000],
+    #     "lr": [3e-3],
+    #     "mlp_lr_discount": [None],
+    #     "emb_dim": [2],
+    #     "nb_emb": [3],
+    #     "ffn_dim": [32],
+    #     "ffn_bias": [True],
+    #     "ffn_dropout": [0],
+    #     "activation": ["gelu"],
+    #     "seed": range(100),
+    #     "unique_id": list(Path(SAVE_DIR).)
+    #     "save_weights": [False],
+    # }
 
-    # grid["seed"] = [89]
-    grid["save_weights"] = [True]
-
-    if ablation == "batch_size":
-        grid["batch_size"] = np.logspace(0, 11, num=12, base=2).astype(int).tolist()
-        grid["batch_size"] = np.logspace(3, 6, num=20, base=2).astype(int)[1:].tolist()
-    elif ablation == "lr":
-        grid["lr"] = np.logspace(0, -4, num=20).tolist()
-        grid["lr"] = np.logspace(-2, -3, num=20).tolist()
-    elif ablation == "mlp_lr":
-        grid["mlp_lr_discount"] = np.logspace(-2, 2, num=20).tolist()
-        grid["mlp_lr_discount"] = np.logspace(-1, 1, num=20).tolist()
-    elif ablation == "ffn_dim":
-        grid["ffn_dim"] = np.logspace(1, 3, 20).astype(int).tolist()
-        grid["ffn_dim"] = np.logspace(1, 2.1, 20).astype(int).tolist()
-    elif ablation == "ffn_bias":
-        grid["ffn_bias"] = [True, False]
-    elif ablation == "ffn_dropout":
-        grid["ffn_dropout"] = np.linspace(0, 0.9, 20).tolist()
-
-    # ablation = ablation + "_89"
-
-    all_configs = product(*grid.values())
+    # Load all previous pretrained configurations
+    all_configs = [json.load(config.as_posix()) for config in Path(SAVE_DIR).glob("*/config.json")]
 
     logger.info(f"Running {len(list(all_configs))} configurations with {num_tasks} tasks.")
     logger.info(f"Ablation mode is {ablation}.")
 
-    for i, values in enumerate(product(*grid.values())):
+    for i, values in enumerate(all_configs):
         # Handling the grid concurrently with many tasks
         if i % num_tasks != (task_id - 1):
             continue
 
         # setup configuration
-        kwargs = dict(zip(grid.keys(), values))
+        kwargs = values
         kwargs["interactive"] = False
         kwargs["save_ext"] = ablation
         config = FinetuneConfig(**kwargs)
