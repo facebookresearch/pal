@@ -266,40 +266,23 @@ def visualization_backend(
     model.to(DEVICE)
     norm = RMSNorm()
 
-    # data
+    # variables
 
-    prefix = [
-        [0, 0, 0, 0, 0],
-        [1, 1, 1, 1, 1],
-        [0, 0, 0, 0, 1],
-        [0, 0, 1, 0, 0],
-        [0, 0, 0, 1, 1],
-        [0, 1, 1, 0, 0],
-        [0, 0, 1, 1, 1],
-        [0, 1, 1, 0, 1],
-        [0, 1, 1, 1, 1],
-        [1, 1, 0, 1, 1],
-    ]
-    suffixes = [
-        [0, 0, 0, 0, 0, 0, 0],
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 1, 0, 0, 1],
-        [0, 1, 1, 0, 0, 1, 0],
-    ]
-    inputs = torch.tensor([pre + suf for pre in prefix for suf in suffixes], device=DEVICE)
-    targets = inputs[:, :sparsity_index].sum(dim=1) % vocab_size
-    pos_inputs = inputs[targets == 1]
-    neg_inputs = inputs[targets == 0]
-
-    tmpx = torch.linspace(-1, 1, 50)
-    tmpy = torch.linspace(-1, 1, 50)
-    X_mlp, Y_mlp = torch.meshgrid(tmpx, tmpy)
-    grid_mlp = torch.stack([X_mlp, Y_mlp], dim=-1).to(DEVICE).view(-1, 2)
-
-    tmpx = torch.linspace(-2.5, 2.5, 50)
-    tmpy = torch.linspace(-3.5, 2.5, 50)
-    X_out, Y_out = torch.meshgrid(tmpx, tmpy)
-    grid_out = torch.stack([X_out, Y_out], dim=-1).to(DEVICE).view(-1, 2)
+    kwargs = {
+        "DEVICE": DEVICE,
+        "vocab_size": vocab_size,
+        "sparsity_index": sparsity_index,
+        "length": length,
+        "ffn_dim": ffn_dim,
+        "losses": losses,
+        "test_losses": test_losses,
+        "accs": accs,
+        "test_accs": test_accs,
+        "text_fontsize": 8,
+        "title_fontsize": 12,
+        "pos_marker": "o",
+        "neg_marker": "s",
+    }
 
     # plot configurations
 
@@ -353,30 +336,6 @@ def visualization_backend(
     fig, axes = plt.subplots(*grid_size, figsize=(WIDTH, HEIGHT))
     if title is not None:
         fig.suptitle(title)
-
-    kwargs = {
-        "text_fontsize": 8,
-        "title_fontsize": 12,
-        "pos_marker": "o",
-        "neg_marker": "s",
-        "vocab_size": vocab_size,
-        "sparsity_index": sparsity_index,
-        "length": length,
-        "ffn_dim": ffn_dim,
-        "pos_inputs": pos_inputs,
-        "neg_inputs": neg_inputs,
-        "inputs": inputs,
-        "X_mlp": X_mlp,
-        "Y_mlp": Y_mlp,
-        "grid_mlp": grid_mlp,
-        "X_out": X_out,
-        "Y_out": Y_out,
-        "grid_out": grid_out,
-        "losses": losses,
-        "test_losses": test_losses,
-        "accs": accs,
-        "test_accs": test_accs,
-    }
 
     # frame creation
 
@@ -444,6 +403,78 @@ class ComputationCache:
             self.locals[key] = value
             return value
         raise KeyError(f"{key} not found in ComputationCache.")
+
+    def get_inputs(self):
+        DEVICE = self["DEVICE"]
+        prefix = [
+            [0, 0, 0, 0, 0],
+            [1, 1, 1, 1, 1],
+            [0, 0, 0, 0, 1],
+            [0, 0, 1, 0, 0],
+            [0, 0, 0, 1, 1],
+            [0, 1, 1, 0, 0],
+            [0, 0, 1, 1, 1],
+            [0, 1, 1, 0, 1],
+            [0, 1, 1, 1, 1],
+            [1, 1, 0, 1, 1],
+        ]
+        suffixes = [
+            [0, 0, 0, 0, 0, 0, 0],
+            [1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 1, 0, 0, 1],
+            [0, 1, 1, 0, 0, 1, 0],
+        ]
+        return torch.tensor([pre + suf for pre in prefix for suf in suffixes], device=DEVICE)
+
+    def get_targets(self):
+        inputs = self["inputs"]
+        vocab_size = self["vocab_size"]
+        sparsity_index = self["sparsity_index"]
+        return inputs[:, :sparsity_index].sum(dim=1) % vocab_size
+
+    def get_pos_inputs(self):
+        inputs = self["inputs"]
+        targets = self["targets"]
+        return inputs[targets == 1]
+
+    def get_neg_inputs(self):
+        inputs = self["inputs"]
+        targets = self["targets"]
+        return inputs[targets == 0]
+
+    def get_mlp_meshgrid(self):
+        tmpx = torch.linspace(-1, 1, 50)
+        tmpy = torch.linspace(-1, 1, 50)
+        return torch.meshgrid(tmpx, tmpy)
+
+    def get_X_mlp(self):
+        return self["mlp_meshgrid"][0]
+
+    def get_Y_mlp(self):
+        return self["mlp_meshgrid"][1]
+
+    def get_grid_mlp(self):
+        X_mlp = self["X_mlp"]
+        Y_mlp = self["Y_mlp"]
+        DEVICE = self["DEVICE"]
+        return torch.stack([X_mlp, Y_mlp], dim=-1).to(DEVICE).view(-1, 2)
+
+    def get_out_meshgrid(self):
+        tmpx = torch.linspace(-2.5, 2.5, 50)
+        tmpy = torch.linspace(-3.5, 2.5, 50)
+        return torch.meshgrid(tmpx, tmpy)
+
+    def get_X_out(self):
+        return self["out_meshgrid"][0]
+
+    def get_Y_out(self):
+        return self["out_meshgrid"][1]
+
+    def get_grid_out(self):
+        X_out = self["X_out"]
+        Y_out = self["Y_out"]
+        DEVICE = self["DEVICE"]
+        return torch.stack([X_out, Y_out], dim=-1).to(DEVICE).view(-1, 2)
 
     def get_token_emb(self):
         weights = self["weights"]
