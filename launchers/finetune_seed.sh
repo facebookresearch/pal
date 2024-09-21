@@ -17,4 +17,4 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --array=1-500
 
-python /private/home/vivc/code/memory-theory/visualization/finetune.py grid --save-ext seed --nb-seeds 10 --save-weight
+python /private/home/vivc/code/memory-theory/visualization/finetune.py grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID --save-ext seed --nb-seeds 10 --save-weight

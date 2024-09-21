@@ -344,15 +344,15 @@ def run_grid(
                     kwargs[key] = config[key]
             config = FinetuneConfig(**kwargs)
 
-        logger.info(f"{config=}")
+            logger.info(f"{config=}")
 
-        try:
-            run_from_config(config)
-        except Exception as e:
-            logger.warning(f"Error for configuration: {config}.")
-            logger.warning(traceback.format_exc())
-            logger.warning(e)
-            continue
+            try:
+                run_from_config(config)
+            except Exception as e:
+                logger.warning(f"Error for configuration: {config}.")
+                logger.warning(traceback.format_exc())
+                logger.warning(e)
+                continue
 
 
 # %% CLI
