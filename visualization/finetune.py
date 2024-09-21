@@ -100,7 +100,6 @@ def run_from_config(config: FinetuneConfig):
     # Load pretrained config, and save config
 
     cfg = json.load(open(load_dir / "config.json", "r"))
-    cfg["original_id"] = cfg["id"]
     save_dir.mkdir(exist_ok=True, parents=True)
     with open(save_dir / "config.json", "w") as f:
         json.dump(cfg | asdict(config) | {"id": unique_id}, f)
