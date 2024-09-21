@@ -332,7 +332,7 @@ def run_grid(
     for values in product(*grid.values()):
         for config in pretrained_configs:
             ind += 1
-            if ind % num_tasks != (task_id - 1):
+            if ind % num_tasks != task_id - 1:
                 continue
 
             # setup configuration
