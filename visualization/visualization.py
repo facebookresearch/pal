@@ -37,7 +37,9 @@ if USETEX:
 # Front-end
 
 
-def show_frame(unique_id: int, epoch: int, file_format: str = None, save_ext: str = None, suffix: str = None, title: str = None):
+def show_frame(
+    unique_id: int, epoch: int, file_format: str = None, save_ext: str = None, suffix: str = None, title: str = None
+):
     """
     Show a single frame for a given unique ID.
 
@@ -58,7 +60,13 @@ def show_frame(unique_id: int, epoch: int, file_format: str = None, save_ext: st
     assert config["save_weights"], f"Weights were not saved for ID {unique_id}."
     assert epoch <= config["nb_epochs"], f"Epoch {epoch} is greater than the number of epochs {config['nb_epochs']}."
     visualization_backend(
-        unique_id, start_frame=epoch, end_frame=None, file_format=file_format, save_ext=save_ext, suffix=suffix, title=title
+        unique_id,
+        start_frame=epoch,
+        end_frame=None,
+        file_format=file_format,
+        save_ext=save_ext,
+        suffix=suffix,
+        title=title,
     )
 
 
@@ -295,8 +303,8 @@ def visualization_backend(
         "title_fontsize": 12,
         "pos_marker": "o",
         "neg_marker": "s",
+        "third_marker": "^",
     }
-    kwargs["vocab_size"] = 2
 
     # plot configurations
 
@@ -336,7 +344,7 @@ def visualization_backend(
                 {"type": "show_mlp_emitters", "position": [2, 2]},
                 {"type": "show_mlp_output", "position": [2, 3]},
                 {"type": "show_output_level_lines", "position": [3, 0]},
-                {"type": "show_output", "position": [3, 1]},
+                # {"type": "show_output", "position": [3, 1]},
                 {"type": "show_loss", "position": [3, 2]},
                 {"type": "show_acc", "position": [3, 3]},
             ],
@@ -456,18 +464,42 @@ class ComputationCache:
         targets = self["targets"]
         return inputs[targets == 0]
 
+    def get_third_inputs(self):
+        if self["vocab_size"] == 2:
+            return None
+        inputs = self["inputs"]
+        targets = self["targets"]
+        return inputs[targets == 2]
+
     def get_mlp_meshgrid(self):
         pos_seq_emb = self["pos_seq_emb"]
         neg_seq_emb = self["neg_seq_emb"]
+        third_seq_emb = self["third_seq_emb"]
 
         xlim = (
-            min(pos_seq_emb[:, 0].min(), neg_seq_emb[:, 0].min()),
-            max(pos_seq_emb[:, 0].max(), neg_seq_emb[:, 0].max()),
+            min(
+                pos_seq_emb[:, 0].min(),
+                neg_seq_emb[:, 0].min(),
+                third_seq_emb[:, 0].min() if third_seq_emb is not None else np.inf,
+            ),
+            max(
+                pos_seq_emb[:, 0].max(),
+                neg_seq_emb[:, 0].max(),
+                third_seq_emb[:, 0].max() if third_seq_emb is not None else -np.inf,
+            ),
         )
         xdelta = (xlim[1] - xlim[0]) * 0.1
         ylim = (
-            min(pos_seq_emb[:, 1].min(), neg_seq_emb[:, 1].min()),
-            max(pos_seq_emb[:, 1].max(), neg_seq_emb[:, 1].max()),
+            min(
+                pos_seq_emb[:, 1].min(),
+                neg_seq_emb[:, 1].min(),
+                third_seq_emb[:, 1].min() if third_seq_emb is not None else np.inf,
+            ),
+            max(
+                pos_seq_emb[:, 1].max(),
+                neg_seq_emb[:, 1].max(),
+                third_seq_emb[:, 1].max() if third_seq_emb is not None else -np.inf,
+            ),
         )
         ydelta = (ylim[1] - ylim[0]) * 0.1
         tmpx = torch.linspace(xlim[0] - xdelta, xlim[1] + xdelta, 50)
@@ -489,15 +521,32 @@ class ComputationCache:
     def get_out_meshgrid(self):
         pos_seq_mlp = self["pos_seq_mlp"]
         neg_seq_mlp = self["neg_seq_mlp"]
+        third_seq_mlp = self["third_seq_mlp"]
 
         xlim = (
-            min(pos_seq_mlp[:, 0].min(), neg_seq_mlp[:, 0].min()),
-            max(pos_seq_mlp[:, 0].max(), neg_seq_mlp[:, 0].max()),
+            min(
+                pos_seq_mlp[:, 0].min(),
+                neg_seq_mlp[:, 0].min(),
+                third_seq_mlp[:, 0].min() if third_seq_mlp is not None else np.inf,
+            ),
+            max(
+                pos_seq_mlp[:, 0].max(),
+                neg_seq_mlp[:, 0].max(),
+                third_seq_mlp[:, 0].max() if third_seq_mlp is not None else -np.inf,
+            ),
         )
         xdelta = (xlim[1] - xlim[0]) * 0.1
         ylim = (
-            min(pos_seq_mlp[:, 1].min(), neg_seq_mlp[:, 1].min()),
-            max(pos_seq_mlp[:, 1].max(), neg_seq_mlp[:, 1].max()),
+            min(
+                pos_seq_mlp[:, 1].min(),
+                neg_seq_mlp[:, 1].min(),
+                third_seq_mlp[:, 1].min() if third_seq_mlp is not None else np.inf,
+            ),
+            max(
+                pos_seq_mlp[:, 1].max(),
+                neg_seq_mlp[:, 1].max(),
+                third_seq_mlp[:, 1].max() if third_seq_mlp is not None else -np.inf,
+            ),
         )
         ydelta = (ylim[1] - ylim[0]) * 0.1
         tmpx = torch.linspace(xlim[0] - xdelta, xlim[1] + xdelta, 50)
@@ -565,6 +614,14 @@ class ComputationCache:
         norm = self["norm"]
         return model.softmax(norm(model.token_emb(neg_inputs) + model.pos_emb.weight))
 
+    def get_third_seq_emb(self):
+        if self["vocab_size"] == 2:
+            return None
+        model = self["model"]
+        third_inputs = self["third_inputs"]
+        norm = self["norm"]
+        return model.softmax(norm(model.token_emb(third_inputs) + model.pos_emb.weight))
+
     def get_norm_pos_seq(self):
         norm = self["norm"]
         pos_seq_emb = self["pos_seq_emb"]
@@ -574,6 +631,13 @@ class ComputationCache:
         norm = self["norm"]
         neg_seq_emb = self["neg_seq_emb"]
         return norm(neg_seq_emb)
+
+    def get_norm_third_seq(self):
+        if self["vocab_size"] == 2:
+            return None
+        norm = self["norm"]
+        third_seq_emb = self["third_seq_emb"]
+        return norm(third_seq_emb)
 
     def get_fc1(self):
         model = self["model"]
@@ -593,6 +657,13 @@ class ComputationCache:
         norm_neg_seq = self["norm_neg_seq"]
         return model.mlp(norm_neg_seq)
 
+    def get_third_seq_mlp(self):
+        if self["vocab_size"] == 2:
+            return None
+        model = self["model"]
+        norm_third_seq = self["norm_third_seq"]
+        return model.mlp(norm_third_seq)
+
     def get_pos_seq_res(self):
         pos_seq_emb = self["pos_seq_emb"]
         pos_seq_mlp = self["pos_seq_mlp"]
@@ -603,6 +674,13 @@ class ComputationCache:
         neg_seq_emb = self["neg_seq_emb"]
         neg_seq_mlp = self["neg_seq_mlp"]
         return neg_seq_emb + neg_seq_mlp
+
+    def get_third_seq_res(self):
+        if self["vocab_size"] == 2:
+            return None
+        third_seq_emb = self["third_seq_emb"]
+        third_seq_mlp = self["third_seq_mlp"]
+        return third_seq_emb + third_seq_mlp
 
     def get_out_mlp(self):
         model = self["model"]
@@ -628,6 +706,14 @@ class ComputationCache:
         vocab_size = self["vocab_size"]
         neg_seq_res = self["neg_seq_res"]
         return F.softmax(model.output(neg_seq_res), dim=-1)[:, :vocab_size]
+
+    def get_third_seq_prob(self):
+        if self["vocab_size"] == 2:
+            return None
+        model = self["model"]
+        vocab_size = self["vocab_size"]
+        third_seq_res = self["third_seq_res"]
+        return F.softmax(model.output(third_seq_res), dim=-1)[:, :vocab_size]
 
 
 def show_token_emb(ax, kwargs):
@@ -676,18 +762,11 @@ def show_emb(ax, kwargs):
     emb = kwargs["emb"]
     sparsity_index = kwargs["sparsity_index"]
     length = kwargs["length"]
+    vocab_size = kwargs["vocab_size"]
     ax.scatter([0], [0], c="k", marker="o", s=50)
     ax.scatter(
         emb[:sparsity_index, 0],
         emb[:sparsity_index, 1],
-        c=np.arange(sparsity_index),
-        cmap="tab20",
-        marker=kwargs["pos_marker"],
-        s=100,
-    )
-    ax.scatter(
-        emb[length : length + sparsity_index, 0],
-        emb[length : length + sparsity_index, 1],
         c=np.arange(sparsity_index),
         cmap="tab20",
         marker=kwargs["pos_marker"],
@@ -702,13 +781,38 @@ def show_emb(ax, kwargs):
         s=100,
     )
     ax.scatter(
-        emb[length + sparsity_index :, 0],
-        emb[length + sparsity_index :, 1],
+        emb[length : length + sparsity_index, 0],
+        emb[length : length + sparsity_index, 1],
+        c=np.arange(sparsity_index),
+        cmap="tab20",
+        marker=kwargs["pos_marker"],
+        s=100,
+    )
+    ax.scatter(
+        emb[length + sparsity_index : 2 * length, 0],
+        emb[length + sparsity_index : 2 * length, 1],
         c=np.arange(sparsity_index, length),
         cmap="tab20",
         marker=kwargs["neg_marker"],
         s=100,
     )
+    if vocab_size == 3:
+        ax.scatter(
+            emb[2 * length : 2 * length + sparsity_index, 0],
+            emb[2 * length : 2 * length + sparsity_index, 1],
+            c=np.arange(sparsity_index),
+            cmap="tab20",
+            marker=kwargs["pos_marker"],
+            s=100,
+        )
+        ax.scatter(
+            emb[2 * length + sparsity_index : 3 * length, 0],
+            emb[2 * length + sparsity_index : 3 * length, 1],
+            c=np.arange(sparsity_index, length),
+            cmap="tab20",
+            marker=kwargs["neg_marker"],
+            s=100,
+        )
     for i, (x, y) in enumerate(emb):
         ax.text(x, y, (i // 12, i % 12), fontsize=kwargs["text_fontsize"])
     ax.grid()
@@ -720,6 +824,7 @@ def show_norm_emb(ax, kwargs):
     query = kwargs["query"]
     sparsity_index = kwargs["sparsity_index"]
     length = kwargs["length"]
+    vocab_size = kwargs["vocab_size"]
     ax.scatter(
         norm_emb[:sparsity_index, 0],
         norm_emb[:sparsity_index, 1],
@@ -745,13 +850,30 @@ def show_norm_emb(ax, kwargs):
         s=100,
     )
     ax.scatter(
-        norm_emb[length + sparsity_index :, 0],
-        norm_emb[length + sparsity_index :, 1],
+        norm_emb[length + sparsity_index : 2 * length, 0],
+        norm_emb[length + sparsity_index : 2 * length, 1],
         c=np.arange(sparsity_index, length),
         cmap="tab20",
         marker=kwargs["neg_marker"],
         s=100,
     )
+    if vocab_size == 3:
+        ax.scatter(
+            norm_emb[2 * length : 2 * length + sparsity_index, 0],
+            norm_emb[2 * length : 2 * length + sparsity_index, 1],
+            c=np.arange(sparsity_index),
+            cmap="tab20",
+            marker=kwargs["pos_marker"],
+            s=100,
+        )
+        ax.scatter(
+            norm_emb[2 * length + sparsity_index : 3 * length, 0],
+            norm_emb[2 * length + sparsity_index : 3 * length, 1],
+            c=np.arange(sparsity_index, length),
+            cmap="tab20",
+            marker=kwargs["neg_marker"],
+            s=100,
+        )
     for i, (x, y) in enumerate(norm_emb):
         ax.text(x, y, (i // 12, i % 12), fontsize=kwargs["text_fontsize"])
     ax.arrow(0, 0, query[0, 0], query[0, 1], head_width=0.1, head_length=0.1, fc="r", ec="r")
@@ -771,6 +893,7 @@ def show_value(ax, kwargs):
     emb_val = kwargs["emb_val"]
     sparsity_index = kwargs["sparsity_index"]
     length = kwargs["length"]
+    vocab_size = kwargs["vocab_size"]
     ax.scatter(
         emb_val[:sparsity_index, 0],
         emb_val[:sparsity_index, 1],
@@ -796,13 +919,30 @@ def show_value(ax, kwargs):
         s=100,
     )
     ax.scatter(
-        emb_val[length + sparsity_index :, 0],
-        emb_val[length + sparsity_index :, 1],
+        emb_val[length + sparsity_index : 2 * length, 0],
+        emb_val[length + sparsity_index : 2 * length, 1],
         c=np.arange(sparsity_index, length),
         cmap="tab20",
         marker=kwargs["neg_marker"],
         s=100,
     )
+    if vocab_size == 3:
+        ax.scatter(
+            emb_val[2 * length : 2 * length + sparsity_index, 0],
+            emb_val[2 * length : 2 * length + sparsity_index, 1],
+            c=np.arange(sparsity_index),
+            cmap="tab20",
+            marker=kwargs["pos_marker"],
+            s=100,
+        )
+        ax.scatter(
+            emb_val[2 * length + sparsity_index : 3 * length, 0],
+            emb_val[2 * length + sparsity_index : 3 * length, 1],
+            c=np.arange(sparsity_index, length),
+            cmap="tab20",
+            marker=kwargs["neg_marker"],
+            s=100,
+        )
     for i, (x, y) in enumerate(emb_val):
         ax.text(x, y, (i // 12, i % 12), fontsize=kwargs["text_fontsize"])
     ax.grid()
@@ -812,8 +952,10 @@ def show_value(ax, kwargs):
 def show_seq_emb(ax, kwargs):
     pos_seq_emb = kwargs["pos_seq_emb"]
     neg_seq_emb = kwargs["neg_seq_emb"]
+    third_seq_emb = kwargs["third_seq_emb"]
     pos_inputs = kwargs["pos_inputs"]
     neg_inputs = kwargs["neg_inputs"]
+    third_inputs = kwargs["third_inputs"]
     ax.scatter([0], [0], c="k", marker="o", s=50)
     ax.scatter(
         pos_seq_emb[:, 0],
@@ -831,12 +973,25 @@ def show_seq_emb(ax, kwargs):
         cmap="tab20b",
         s=100,
     )
+    if third_seq_emb is not None:
+        ax.scatter(
+            third_seq_emb[:, 0],
+            third_seq_emb[:, 1],
+            c=np.arange(third_seq_emb.shape[0]),
+            marker=kwargs["third_marker"],
+            cmap="tab20b",
+            s=100,
+        )
     for i, (x, y) in enumerate(pos_seq_emb):
         t = ax.text(x, y, pos_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
         t.set_alpha(0.3)
     for i, (x, y) in enumerate(neg_seq_emb):
         t = ax.text(x, y, neg_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
         t.set_alpha(0.3)
+    if third_seq_emb is not None:
+        for i, (x, y) in enumerate(third_seq_emb):
+            t = ax.text(x, y, third_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
+            t.set_alpha(0.3)
     ax.grid()
     ax.set_title(r"Sequence Embeddings $\xi$", fontsize=kwargs["title_fontsize"])
 
@@ -847,8 +1002,10 @@ def show_level_line(ax, kwargs):
     out_mlp = kwargs["out_mlp"]
     pos_seq_emb = kwargs["pos_seq_emb"]
     neg_seq_emb = kwargs["neg_seq_emb"]
+    third_seq_emb = kwargs["third_seq_emb"]
     pos_inputs = kwargs["pos_inputs"]
     neg_inputs = kwargs["neg_inputs"]
+    third_inputs = kwargs["third_inputs"]
     ax.contourf(X_mlp, Y_mlp, out_mlp, cmap="coolwarm", vmin=0, vmax=1)
     ax.scatter(
         pos_seq_emb[:, 0],
@@ -866,12 +1023,25 @@ def show_level_line(ax, kwargs):
         cmap="tab20b",
         s=100,
     )
+    if third_seq_emb is not None:
+        ax.scatter(
+            third_seq_emb[:, 0],
+            third_seq_emb[:, 1],
+            c=np.arange(third_seq_emb.shape[0]),
+            marker=kwargs["third_marker"],
+            cmap="tab20b",
+            s=100,
+        )
     for i, (x, y) in enumerate(pos_seq_emb):
         t = ax.text(x, y, pos_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
         t.set_alpha(0.3)
     for i, (x, y) in enumerate(neg_seq_emb):
         t = ax.text(x, y, neg_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
         t.set_alpha(0.3)
+    if third_seq_emb is not None:
+        for i, (x, y) in enumerate(third_seq_emb):
+            t = ax.text(x, y, third_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
+            t.set_alpha(0.3)
     ax.set_title(r"Transform level lines: $\xi \to p(y=1|\xi)$", fontsize=kwargs["title_fontsize"])
 
 
@@ -1130,7 +1300,6 @@ def show_acc(ax, kwargs):
 
 
 # CLI Wrapper
-
 
 if __name__ == "__main__":
     import fire
