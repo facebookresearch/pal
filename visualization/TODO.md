@@ -1,8 +1,10 @@
 
 ## TODO visualization
 
-- Fine-tuning
-    - [ ] Write visualization when $p=3$ with triangles for the sequence associated to $y = 2$.
+- Fine-tuning visualization
+    - Change the inputs definition when vocab-size = 3
+    - Change the level lines definition
+    - Change the output plot (show output in the simplex).
     - Get some movies and analyze them
 
 - Get the ablation study plots - format them nicely for the paper: send data to my computer and plot them with latex fonts.
