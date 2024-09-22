@@ -7,8 +7,6 @@
 
 - Get the ablation study plots - format them nicely for the paper: send data to my computer and plot them with latex fonts.
 
-
-- Analyze final configurations to distinguish between different final solutions.
 - Analyze the different videos.
     - why and how do we get to different solutions?
     - why and how do we get loss spikes?

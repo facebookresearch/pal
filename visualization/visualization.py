@@ -187,18 +187,18 @@ def aggregate_video(unique_id: int, save_ext: str = None):
     concat_clip.write_videofile(str(film_dir / f"{unique_id}.mp4"))
 
 
-def aggregate_all_videos(save_ext: str = None):
+def aggregate_all_videos(save_ext: str = None, suffix: str = None):
     """
-    Aggregate videos for a given unique ID.
+    Aggregate videos for a given configuration file.
 
     Parameters
     ----------
-    unique_id
-        Unique identifier for the configuration file.
     save_ext
         Experiments folder identifier.
+    suffix
+        Configuration file suffix.
     """
-    all_configs = load_configs(save_ext)
+    all_configs = load_configs(save_ext, suffix=suffix)
     for experiment in all_configs:
         try:
             aggregate_video(experiment["id"], save_ext=save_ext)
