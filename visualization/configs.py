@@ -21,7 +21,7 @@ from factorization.config import CONFIG_DIR, SAVE_DIR
 logger = logging.getLogger(__name__)
 
 
-def get_paths(save_ext: str = None) -> None:
+def get_paths(save_ext: str = None, suffix: str = None) -> None:
     """
     Get used file paths.
 
@@ -37,13 +37,13 @@ def get_paths(save_ext: str = None) -> None:
     config_file
         Configuration file path.
     """
-
+    config_dir = CONFIG_DIR / suffix if suffix is not None else CONFIG_DIR
     if save_ext is None:
         save_dir = SAVE_DIR
-        config_file = CONFIG_DIR / "base.jsonl"
+        config_file = config_dir / "base.jsonl"
     else:
         save_dir = SAVE_DIR / save_ext
-        config_file = CONFIG_DIR / f"{save_ext}.jsonl"
+        config_file = config_dir / f"{save_ext}.jsonl"
     return save_dir, config_file
 
 
@@ -241,6 +241,40 @@ def load_experimental_results(
     return pd.concat(all_data, ignore_index=True)
 
 
+def filter_configs(save_ext: str = None, tol: float = 0.0):
+    _, pos_config_file = get_paths(save_ext, "success")
+    _, neg_config_file = get_paths(save_ext, "failure")
+    pos_config_file.parent.mkdir(exist_ok=True, parents=True)
+    neg_config_file.parent.mkdir(exist_ok=True, parents=True)
+    with open(pos_config_file, "w") as f:
+        pass
+    with open(neg_config_file, "w") as f:
+        pass
+    all_configs = load_configs(save_ext)
+
+    for experience in all_configs:
+        save_dir, _ = get_paths(experience["save_ext"])
+        save_dir = save_dir / experience["id"]
+        if not save_dir.exists():
+            logger.info(f"Skipping {experience['id']}, no data found.")
+            continue
+
+        try:
+            accs = np.load(save_dir / "test_accs.pkl", allow_pickle=True)
+            if accs[-1] >= 1 - tol:
+                with open(pos_config_file, "a") as f:
+                    json.dump(experience, f)
+                    f.write("\n")
+            else:
+                with open(neg_config_file, "a") as f:
+                    json.dump(experience, f)
+                    f.write("\n")
+        except FileNotFoundError as e:
+            logger.warning(f"Error reading {experience}.")
+            logger.warning(e)
+            continue
+
+
 # CLI Wrapper
 
 
@@ -251,4 +285,9 @@ if __name__ == "__main__":
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler()]
     )
 
-    fire.Fire(aggregate_configs)
+    fire.Fire(
+        {
+            "aggregate": aggregate_configs,
+            "filter": filter_configs,
+        }
+    )
