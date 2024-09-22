@@ -19,9 +19,9 @@ import traceback
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from configs import get_paths, load_configs, load_experimental_results
 from matplotlib import rc
 
+from configs import get_paths, load_configs, load_experimental_results
 from factorization.config import IMAGE_DIR, USETEX
 
 logger = logging.getLogger(__name__)
@@ -110,12 +110,13 @@ def show_ablation(seed: bool = False, key: str = "test_acc", file_format: str = 
     """
     all_data = {}
     exp_ids = ["batch_size", "ffn_dim", "lr", "mlp_lr"]
+    exp_ids = ["ffn_dim", "lr", "mlp_lr"]
     group_keys = ["batch_size", "ffn_dim", "lr", "mlp_lr_discount", "seed", "id"]
 
     for exp_id in exp_ids:
         logger.info(f"Loading data for {exp_id}.")
         all_configs = load_configs(exp_id)
-        data = load_experimental_results(all_configs, group_keys, exp_id)
+        data = load_experimental_results(all_configs, group_keys)
         data["success"] = data["test_acc"] > 0.98
         all_data[exp_id] = data
 
@@ -125,7 +126,6 @@ def show_ablation(seed: bool = False, key: str = "test_acc", file_format: str = 
     nb_epochs = all_data[exp_ids[0]]["epoch"].max()
 
     group_keys = ["batch_size", "ffn_dim", "lr", "mlp_lr_discount"]
-    log_keys = ["batch_size", "ffn_dim", "lr", "mlp_lr_discount"]
     if seed:
         for seed in all_seeds:
             logger.info(f"Processing seed {seed}.")
@@ -138,8 +138,7 @@ def show_ablation(seed: bool = False, key: str = "test_acc", file_format: str = 
                     exp_id = "mlp_lr_discount"
                 axes[i].plot(mean[exp_id], mean[key])
                 axes[i].set_title(exp_id)
-                if exp_id in log_keys:
-                    axes[i].set_xscale("log")
+                axes[i].set_xscale("log")
             fig.suptitle(seed)
             fig.savefig(image_dir / f"{seed}_{key}.{file_format}", bbox_inches="tight")
     else:
@@ -153,8 +152,7 @@ def show_ablation(seed: bool = False, key: str = "test_acc", file_format: str = 
             axes[i].plot(mean[exp_id], mean[key])
             axes[i].fill_between(mean[exp_id], mean[key] - std[key], mean[key] + std[key], alpha=0.2)
             axes[i].set_title(exp_id)
-            if exp_id in log_keys:
-                axes[i].set_xscale("log")
+            axes[i].set_xscale("log")
         fig.suptitle("All")
         fig.savefig(image_dir / f"all_{key}.{file_format}", bbox_inches="tight")
 
@@ -247,7 +245,9 @@ if __name__ == "__main__":
     import fire
 
     logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler()]
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
+        handlers=[logging.StreamHandler()],
     )
 
     fire.Fire(

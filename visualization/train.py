@@ -405,7 +405,8 @@ def run_grid(
     elif ablation == "mlp_lr":
         grid["mlp_lr_discount"] = np.logspace(-2, 2, num=20).tolist()
     elif ablation == "ffn_dim":
-        grid["ffn_dim"] = np.logspace(1, 3, 20).astype(int).tolist()
+        grid["ffn_dim"] = np.logspace(1, 4, 20).astype(int).tolist()
+        grid["MAX_FFN_DIM"] = [10_000]
     elif ablation == "ffn_bias":
         grid["ffn_bias"] = [True, False]
     elif ablation == "ffn_dropout":
@@ -445,7 +446,9 @@ if __name__ == "__main__":
     import fire
 
     logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler()]
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s",
+        handlers=[logging.StreamHandler()],
     )
 
     fire.Fire(
