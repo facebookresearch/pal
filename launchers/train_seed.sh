@@ -17,4 +17,4 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --array=1-50
 
-python /private/home/vivc/code/memory-theory/visualization/train.py grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID --ablation seed --save-weights true
+python /private/home/vivc/code/memory-theory/visualization/train.py grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID --ablation seed --save-weight

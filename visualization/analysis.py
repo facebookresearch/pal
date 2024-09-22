@@ -110,7 +110,6 @@ def show_ablation(seed: bool = False, key: str = "test_acc", file_format: str = 
     """
     all_data = {}
     exp_ids = ["batch_size", "ffn_dim", "lr", "mlp_lr"]
-    exp_ids = ["ffn_dim", "lr", "mlp_lr"]
     group_keys = ["batch_size", "ffn_dim", "lr", "mlp_lr_discount", "seed", "id"]
 
     for exp_id in exp_ids:
@@ -139,6 +138,7 @@ def show_ablation(seed: bool = False, key: str = "test_acc", file_format: str = 
                 axes[i].plot(mean[exp_id], mean[key])
                 axes[i].set_title(exp_id)
                 axes[i].set_xscale("log")
+                axes[i].grid()
             fig.suptitle(seed)
             fig.savefig(image_dir / f"{seed}_{key}.{file_format}", bbox_inches="tight")
     else:
