@@ -84,6 +84,11 @@ class ExperimentConfig:
     save_ext: str = None
     save_weights: bool = False
     interactive: bool = True
+    id: str = None
+
+    def __init__(self, **kwargs):
+        self.__dict__.update((k, v) for k, v in kwargs.items() if k in self.__annotations__)
+        self.__post_init__()
 
     def __post_init__(self):
         if self.batch_size is None:
@@ -92,6 +97,8 @@ class ExperimentConfig:
             self.nb_emb = self.vocab_size
         if self.ffn_dim is None:
             self.ffn_dim = 4 * self.emb_dim
+        if self.id is None:
+            self.id = uuid.uuid4().hex
 
 
 # %% Main function
@@ -113,15 +120,14 @@ def run_from_config(config: ExperimentConfig):
     else:
         RNG = np.random.default_rng()
 
-    unique_id = uuid.uuid4().hex
     if config.save_ext is None:
-        save_dir = SAVE_DIR / unique_id
+        save_dir = SAVE_DIR / config.id
     else:
-        save_dir = SAVE_DIR / config.save_ext / unique_id
+        save_dir = SAVE_DIR / config.save_ext / config.id
 
     save_dir.mkdir(exist_ok=True, parents=True)
     with open(save_dir / "config.json", "w") as f:
-        json.dump(asdict(config) | {"id": unique_id}, f)
+        json.dump(asdict(config), f)
 
     # Data
 
@@ -321,6 +327,32 @@ def run_experiments(
     run_from_config(config)
 
 
+def run_from_jsonl(file: str, **kwargs: dict[str, any]) -> None:
+    """
+    Run experiments from a JSONL file.
+
+    Parameters
+    ----------
+    file:
+        The path to the JSONL file.
+    kwargs:
+        Additional arguments to override the configuration.
+    """
+    with open(file, "r") as f:
+        for line in f.readlines():
+            try:
+                config = ExperimentConfig(**json.loads(line))
+                for k, v in kwargs.items():
+                    if v is not None:
+                        setattr(config, k, v)
+                logger.info(f"Running experiment with {config=}")
+                run_from_config(config)
+            except Exception as e:
+                logger.warning(f"Error when loading: {line}")
+                logger.warning(traceback.format_exc())
+                logger.warning(e)
+
+
 # %% Grid run
 
 
@@ -381,8 +413,6 @@ def run_grid(
     elif ablation == "seed":
         grid["seed"] = range(100)
 
-    # ablation = ablation + "_89"
-
     nb_configs = sum(1 for _ in product(*grid.values()))
     logger.info(f"Running {nb_configs} configurations with {num_tasks} tasks.")
     logger.info(f"Ablation mode is {ablation}.")
@@ -421,6 +451,7 @@ if __name__ == "__main__":
     fire.Fire(
         {
             "run": run_experiments,
+            "config": run_from_jsonl,
             "grid": run_grid,
         }
     )

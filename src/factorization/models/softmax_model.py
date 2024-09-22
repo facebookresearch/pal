@@ -218,6 +218,7 @@ class ModelConfig:
 
     def __init__(self, **kwargs):
         self.__dict__.update((k, v) for k, v in kwargs.items() if k in self.__annotations__)
+        self.__post_init__()
 
     def __post_init__(self):
         if self.ffn_dim is None:
