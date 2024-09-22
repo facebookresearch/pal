@@ -153,6 +153,7 @@ def show_ablation(seed: bool = False, key: str = "test_acc", file_format: str = 
             axes[i].fill_between(mean[exp_id], mean[key] - std[key], mean[key] + std[key], alpha=0.2)
             axes[i].set_title(exp_id)
             axes[i].set_xscale("log")
+            axes[i].grid()
         fig.suptitle("All")
         fig.savefig(image_dir / f"all_{key}.{file_format}", bbox_inches="tight")
 

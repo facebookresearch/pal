@@ -17,6 +17,11 @@
 # python /private/home/vivc/code/memory-theory/visualization/configs.py filter --save-ext mlp_lr
 # python /private/home/vivc/code/memory-theory/visualization/configs.py filter --save-ext seed
 
+# sbatch /private/home/vivc/code/memory-theory/launchers/finetune_seed.sh
+
+# python /private/home/vivc/code/memory-theory/visualization/configs.py aggregate --save-ext finetune/seed
+# python /private/home/vivc/code/memory-theory/visualization/configs.py filter --save-ext finetune/seed
+
 # python /private/home/vivc/code/memory-theory/visualization/analysis.py ablation --seed
 # python /private/home/vivc/code/memory-theory/visualization/analysis.py ablation --noseed --key test_acc
 # python /private/home/vivc/code/memory-theory/visualization/analysis.py ablation --noseed --key success
@@ -29,5 +34,3 @@
 
 # sbatch /private/home/vivc/code/memory-theory/launchers/aggregate.sh
 
-# sbatch /private/home/vivc/code/memory-theory/launchers/finetune_seed.sh
-# python /private/home/vivc/code/memory-theory/visualization/configs.py aggregate --save-ext finetune/seed
