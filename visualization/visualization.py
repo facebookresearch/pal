@@ -37,7 +37,7 @@ if USETEX:
 # Front-end
 
 
-def show_frame(unique_id: int, epoch: int, file_format: str = None, save_ext: str = None, title: str = None):
+def show_frame(unique_id: int, epoch: int, file_format: str = None, save_ext: str = None, suffix: str = None, title: str = None):
     """
     Show a single frame for a given unique ID.
 
@@ -54,11 +54,11 @@ def show_frame(unique_id: int, epoch: int, file_format: str = None, save_ext: st
     title
         Title for the plot.
     """
-    config = recover_config(unique_id, save_ext=save_ext)
+    config = recover_config(unique_id, save_ext=save_ext, suffix=suffix)
     assert config["save_weights"], f"Weights were not saved for ID {unique_id}."
     assert epoch <= config["nb_epochs"], f"Epoch {epoch} is greater than the number of epochs {config['nb_epochs']}."
     visualization_backend(
-        unique_id, start_frame=epoch, end_frame=None, file_format=file_format, save_ext=save_ext, title=title
+        unique_id, start_frame=epoch, end_frame=None, file_format=file_format, save_ext=save_ext, suffix=suffix, title=title
     )
 
 
@@ -104,6 +104,7 @@ def generate_animation(
 
 def generate_all_animations(
     save_ext: str = None,
+    suffix: str = None,
     num_tasks: int = 1,
     num_tasks_per_videos: int = 1,
     task_id: int = 1,
@@ -117,6 +118,8 @@ def generate_all_animations(
     ----------
     save_ext
         Experiments folder identifier.
+    suffix
+        Configuration file suffix.
     num_tasks
         Number of tasks to divide the animation into.
     num_tasks_per_videos
@@ -128,7 +131,8 @@ def generate_all_animations(
     title_key
         Key for the title in the configuration file.
     """
-    all_configs = load_configs(save_ext)
+    all_configs = load_configs(save_ext, suffix=suffix)
+    logger.info(f"Generating animations for {len(all_configs)} configurations.")
     ind = 0
     for experiment in all_configs:
         for video_task_id in range(1, num_tasks_per_videos + 1):
@@ -151,7 +155,13 @@ def generate_all_animations(
             logger.info(f"Generating animation for ID {unique_id} from frame {start_frame} to frame {end_frame}.")
             title = f"{title_key}: {experiment[title_key]}" if title_key is not None else None
             visualization_backend(
-                unique_id, start_frame, end_frame, file_format=file_format, save_ext=save_ext, title=title
+                unique_id,
+                start_frame,
+                end_frame,
+                file_format=file_format,
+                save_ext=save_ext,
+                suffix=suffix,
+                title=title,
             )
 
 
@@ -206,6 +216,7 @@ def visualization_backend(
     end_frame: int = None,
     file_format: str = None,
     save_ext: str = None,
+    suffix: str = None,
     title: str = None,
     plot_config: str = None,
 ):
@@ -227,6 +238,8 @@ def visualization_backend(
         File format for the image or video.
     save_ext
         Experiments folder identifier.
+    suffix
+        Configuration file suffix.
     title
         Title for the plot.
     plot_config
@@ -235,14 +248,14 @@ def visualization_backend(
 
     # configuration and saved computations
 
-    config = recover_config(unique_id, save_ext=save_ext)
+    config = recover_config(unique_id, save_ext=save_ext, suffix=suffix)
     vocab_size = config["vocab_size"]
     length = config["seq_length"]
     sparsity_index = config["sparsity_index"]
     ffn_dim = config["ffn_dim"]
     assert config["save_weights"], f"Weights were not saved for ID {unique_id}."
 
-    save_dir, _ = get_paths(save_ext)
+    save_dir, _ = get_paths(save_ext, suffix=suffix)
     save_dir = save_dir / unique_id
     weights = pickle.load(open(save_dir / "weights.pkl", "rb"))
     losses = pickle.load(open(save_dir / "losses.pkl", "rb"))
@@ -283,6 +296,7 @@ def visualization_backend(
         "pos_marker": "o",
         "neg_marker": "s",
     }
+    kwargs["vocab_size"] = 2
 
     # plot configurations
 

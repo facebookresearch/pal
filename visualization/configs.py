@@ -29,6 +29,8 @@ def get_paths(save_ext: str = None, suffix: str = None) -> None:
     ----------
     save_ext
         Experiments folder identifier.
+    suffix
+        Configuration file suffix.
 
     Returns
     -------
@@ -79,7 +81,7 @@ def aggregate_configs(save_ext: str = None) -> None:
             f.write("\n")
 
 
-def recover_config(unique_id: str = None, save_ext: str = None) -> dict[str, any]:
+def recover_config(unique_id: str = None, save_ext: str = None, suffix: str = None) -> dict[str, any]:
     """
     Recover the configuration file for a given unique ID.
 
@@ -89,6 +91,8 @@ def recover_config(unique_id: str = None, save_ext: str = None) -> dict[str, any
         Unique identifier for the configuration file.
     save_ext
         Experiments folder identifier.
+    suffix
+        Configuration file suffix.
 
     Returns
     -------
@@ -97,7 +101,7 @@ def recover_config(unique_id: str = None, save_ext: str = None) -> dict[str, any
     save_ext
         Experiments folder identifier.
     """
-    save_dir, _ = get_paths(save_ext)
+    save_dir, _ = get_paths(save_ext, suffix=suffix)
 
     try:
         config_file = save_dir / str(unique_id) / "config.json"
@@ -106,11 +110,11 @@ def recover_config(unique_id: str = None, save_ext: str = None) -> dict[str, any
     except FileNotFoundError as e:
         logger.info(f"Configuration file for {unique_id} not found.")
         logger.info(e)
-        config = recover_config_from_aggregated(unique_id, save_ext=save_ext)
+        config = recover_config_from_aggregated(unique_id, save_ext=save_ext, suffix=suffix)
     return config
 
 
-def recover_config_from_aggregated(unique_id: str, save_ext: str = None) -> dict[str, any]:
+def recover_config_from_aggregated(unique_id: str, save_ext: str = None, suffix: str = None) -> dict[str, any]:
     """
     Recover the configuration file for a given unique ID from the aggregated file.
 
@@ -118,13 +122,17 @@ def recover_config_from_aggregated(unique_id: str, save_ext: str = None) -> dict
     ----------
     unique_id
         Unique identifier for the configuration file.
+    save_ext
+        Experiments folder identifier.
+    suffix
+        Configuration file suffix.
 
     Returns
     -------
     config
         Configuration dictionary.
     """
-    _, config_file = get_paths(save_ext)
+    _, config_file = get_paths(save_ext, suffix=suffix)
     with open(config_file, "r") as f:
         lines = f.readlines()
     for line in lines:
@@ -140,7 +148,7 @@ def recover_config_from_aggregated(unique_id: str, save_ext: str = None) -> dict
 # Load experimental results
 
 
-def load_configs(save_ext: str = None) -> list[dict[str, any]]:
+def load_configs(save_ext: str = None, suffix: str = None) -> list[dict[str, any]]:
     """
     Load all configurations from the aggregated configuration file.
 
@@ -148,6 +156,8 @@ def load_configs(save_ext: str = None) -> list[dict[str, any]]:
     -------
     save_ext
         Experiments folder identifier.
+    suffix
+        Configuration file suffix.
 
     Returns
     -------
@@ -155,7 +165,7 @@ def load_configs(save_ext: str = None) -> list[dict[str, any]]:
         List of all configurations.
     """
     all_configs = []
-    _, config_file = get_paths(save_ext)
+    _, config_file = get_paths(save_ext, suffix=suffix)
     with open(config_file, "r") as f:
         for line in f.readlines():
             try:
@@ -242,8 +252,8 @@ def load_experimental_results(
 
 
 def filter_configs(save_ext: str = None, tol: float = 0.0):
-    _, pos_config_file = get_paths(save_ext, "success")
-    _, neg_config_file = get_paths(save_ext, "failure")
+    _, pos_config_file = get_paths(save_ext, suffix="success")
+    _, neg_config_file = get_paths(save_ext, suffix="failure")
     pos_config_file.parent.mkdir(exist_ok=True, parents=True)
     neg_config_file.parent.mkdir(exist_ok=True, parents=True)
     with open(pos_config_file, "w") as f:

@@ -1,14 +1,11 @@
 
 ## TODO visualization
 
-- See percentage of success for finetuning and check where did we start from
-
-- Get the ablation study plots
-    - Ablation study with ffn_dim all the way to 10_000
-    - Format them nicely for the paper: send data to my computer and plot them with latex fonts.
-
 - Fine-tuning
     - [ ] Write visualization when $p=3$ with triangles for the sequence associated to $y = 2$.
+    - Get some movies and analyze them
+
+- Get the ablation study plots - format them nicely for the paper: send data to my computer and plot them with latex fonts.
 
 
 - Analyze final configurations to distinguish between different final solutions.

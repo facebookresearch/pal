@@ -26,11 +26,14 @@
 # python /private/home/vivc/code/memory-theory/visualization/analysis.py ablation --noseed --key test_acc
 # python /private/home/vivc/code/memory-theory/visualization/analysis.py ablation --noseed --key success
 
-# sbatch /private/home/vivc/code/memory-theory/launchers/visu_bsz.sh
-# sbatch /private/home/vivc/code/memory-theory/launchers/visu_dim.sh
-# sbatch /private/home/vivc/code/memory-theory/launchers/visu_lr.sh
-# sbatch /private/home/vivc/code/memory-theory/launchers/visu_mlp.sh
 # sbatch /private/home/vivc/code/memory-theory/launchers/visu_seed.sh
+# sbatch /private/home/vivc/code/memory-theory/launchers/visu_finetune.sh
 
 # sbatch /private/home/vivc/code/memory-theory/launchers/aggregate.sh
 
+# # plots first and last frames of successful finetuning
+# while read line; do
+#   name=$(echo $line | jq '.id')
+#   python /private/home/vivc/code/memory-theory/visualization/visualization.py frame --epoch 0 --file-format png --save-ext finetune/seed --suffix success --unique-id $name
+#   python /private/home/vivc/code/memory-theory/visualization/visualization.py frame --epoch 1000 --file-format png --save-ext finetune/seed --suffix success --unique-id $name
+# done < /private/home/vivc/code/memory-theory/configs/success/finetune/seed.jsonl
