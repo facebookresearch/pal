@@ -796,44 +796,34 @@ class ComputationCache:
 
     def get_pos_seq_prob(self):
         model = self["model"]
-        vocab_size = self["vocab_size"]
         pos_seq_res = self["pos_seq_res"]
-        return F.softmax(model.output(pos_seq_res), dim=-1)[:, :vocab_size]
+        return F.softmax(model.output(pos_seq_res), dim=-1)
 
     def get_neg_seq_prob(self):
         model = self["model"]
-        vocab_size = self["vocab_size"]
         neg_seq_res = self["neg_seq_res"]
-        return F.softmax(model.output(neg_seq_res), dim=-1)[:, :vocab_size]
+        return F.softmax(model.output(neg_seq_res), dim=-1)
 
     def get_third_seq_prob(self):
         if self["vocab_size"] == 2:
             return None
         model = self["model"]
-        vocab_size = self["vocab_size"]
         third_seq_res = self["third_seq_res"]
-        return F.softmax(model.output(third_seq_res), dim=-1)[:, :vocab_size]
+        return F.softmax(model.output(third_seq_res), dim=-1)
 
     def get_simplex_vertices(self):
-        return torch.tensor(
-            [
-                [0, 0],
-                [1, 0],
-                [0.5, math.sqrt(3) / 2],
-            ],
-            device=self["DEVICE"],
-            dtype=torch.float32,
-        )
+        array = [[0, 0], [1, 0], [0.5, math.sqrt(3) / 2]]
+        return torch.tensor(array, device=self["DEVICE"], dtype=torch.float32)
 
     def get_pos_simplex(self):
         pos_seq_prob = self["pos_seq_prob"]
         vertices = self["simplex_vertices"]
-        return pos_seq_prob @ vertices
+        return pos_seq_prob @ vertices[: pos_seq_prob.shape[1]]
 
     def get_neg_simplex(self):
         neg_seq_prob = self["neg_seq_prob"]
         vertices = self["simplex_vertices"]
-        return neg_seq_prob @ vertices
+        return neg_seq_prob @ vertices[: neg_seq_prob.shape[1]]
 
     def get_third_simplex(self):
         if self["vocab_size"] == 2:
