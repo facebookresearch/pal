@@ -12,6 +12,7 @@ in the root directory of this source tree.
 # Imports
 
 import logging
+import math
 import pickle
 
 import matplotlib.animation as animation
@@ -344,7 +345,7 @@ def visualization_backend(
                 {"type": "show_mlp_emitters", "position": [2, 2]},
                 {"type": "show_mlp_output", "position": [2, 3]},
                 {"type": "show_output_level_lines", "position": [3, 0]},
-                # {"type": "show_output", "position": [3, 1]},
+                {"type": "show_output", "position": [3, 1]},
                 {"type": "show_loss", "position": [3, 2]},
                 {"type": "show_acc", "position": [3, 3]},
             ],
@@ -428,24 +429,49 @@ class ComputationCache:
 
     def get_inputs(self):
         DEVICE = self["DEVICE"]
-        prefix = [
-            [0, 0, 0, 0, 0],
-            [1, 1, 1, 1, 1],
-            [0, 0, 0, 0, 1],
-            [0, 0, 1, 0, 0],
-            [0, 0, 0, 1, 1],
-            [0, 1, 1, 0, 0],
-            [0, 0, 1, 1, 1],
-            [0, 1, 1, 0, 1],
-            [0, 1, 1, 1, 1],
-            [1, 1, 0, 1, 1],
-        ]
-        suffixes = [
-            [0, 0, 0, 0, 0, 0, 0],
-            [1, 1, 1, 1, 1, 1, 1],
-            [1, 0, 0, 1, 0, 0, 1],
-            [0, 1, 1, 0, 0, 1, 0],
-        ]
+        if self["vocab_size"] == 2:
+            prefix = [
+                [0, 0, 0, 0, 0],
+                [1, 1, 1, 1, 1],
+                [0, 0, 0, 0, 1],
+                [0, 0, 1, 0, 0],
+                [0, 0, 0, 1, 1],
+                [0, 1, 1, 0, 0],
+                [0, 0, 1, 1, 1],
+                [0, 1, 1, 0, 1],
+                [0, 1, 1, 1, 1],
+                [1, 1, 0, 1, 1],
+            ]
+            suffixes = [
+                [0, 0, 0, 0, 0, 0, 0],
+                [1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 1, 0, 0, 1],
+                [0, 1, 1, 0, 0, 1, 0],
+            ]
+        else:
+            prefix = [
+                [0, 0, 0, 0, 0],
+                [1, 0, 0, 0, 0],
+                [1, 1, 0, 0, 0],
+                [2, 1, 0, 0, 0],
+                [2, 1, 1, 0, 0],
+                [2, 1, 1, 1, 0],
+                [0, 0, 2, 0, 1],
+                [0, 0, 2, 1, 1],
+                [1, 0, 2, 1, 1],
+                [1, 0, 1, 1, 0],
+                [1, 0, 2, 1, 0],
+                [1, 0, 2, 2, 0],
+                [1, 1, 0, 0, 1],
+                [1, 2, 0, 0, 1],
+                [2, 2, 0, 0, 1],
+            ]
+            suffixes = [
+                [1, 2, 0, 1, 2, 0, 1],
+                [1, 0, 2, 1, 0, 2, 1],
+                [0, 1, 2, 0, 1, 2, 0],
+                [2, 0, 1, 2, 0, 1, 2],
+            ]
         return torch.tensor([pre + suf for pre in prefix for suf in suffixes], device=DEVICE)
 
     def get_targets(self):
@@ -471,39 +497,75 @@ class ComputationCache:
         targets = self["targets"]
         return inputs[targets == 2]
 
-    def get_mlp_meshgrid(self):
+    def get_mlp_raw_x_min(self):
         pos_seq_emb = self["pos_seq_emb"]
         neg_seq_emb = self["neg_seq_emb"]
         third_seq_emb = self["third_seq_emb"]
+        return min(
+            pos_seq_emb[:, 0].min(),
+            neg_seq_emb[:, 0].min(),
+            third_seq_emb[:, 0].min() if third_seq_emb is not None else np.inf,
+        )
 
-        xlim = (
-            min(
-                pos_seq_emb[:, 0].min(),
-                neg_seq_emb[:, 0].min(),
-                third_seq_emb[:, 0].min() if third_seq_emb is not None else np.inf,
-            ),
-            max(
-                pos_seq_emb[:, 0].max(),
-                neg_seq_emb[:, 0].max(),
-                third_seq_emb[:, 0].max() if third_seq_emb is not None else -np.inf,
-            ),
+    def get_mlp_raw_x_max(self):
+        pos_seq_emb = self["pos_seq_emb"]
+        neg_seq_emb = self["neg_seq_emb"]
+        third_seq_emb = self["third_seq_emb"]
+        return max(
+            pos_seq_emb[:, 0].max(),
+            neg_seq_emb[:, 0].max(),
+            third_seq_emb[:, 0].max() if third_seq_emb is not None else -np.inf,
         )
-        xdelta = (xlim[1] - xlim[0]) * 0.1
-        ylim = (
-            min(
-                pos_seq_emb[:, 1].min(),
-                neg_seq_emb[:, 1].min(),
-                third_seq_emb[:, 1].min() if third_seq_emb is not None else np.inf,
-            ),
-            max(
-                pos_seq_emb[:, 1].max(),
-                neg_seq_emb[:, 1].max(),
-                third_seq_emb[:, 1].max() if third_seq_emb is not None else -np.inf,
-            ),
+
+    def get_mlp_x_delta(self):
+        mlp_x_min = self["mlp_raw_x_min"]
+        mlp_x_max = self["mlp_raw_x_max"]
+        return (mlp_x_max - mlp_x_min) * 0.1
+
+    def get_mlp_x_min(self):
+        return self["mlp_raw_x_min"] - self["mlp_x_delta"]
+
+    def get_mlp_x_max(self):
+        return self["mlp_raw_x_max"] + self["mlp_x_delta"]
+
+    def get_mlp_raw_y_min(self):
+        pos_seq_emb = self["pos_seq_emb"]
+        neg_seq_emb = self["neg_seq_emb"]
+        third_seq_emb = self["third_seq_emb"]
+        return min(
+            pos_seq_emb[:, 1].min(),
+            neg_seq_emb[:, 1].min(),
+            third_seq_emb[:, 1].min() if third_seq_emb is not None else np.inf,
         )
-        ydelta = (ylim[1] - ylim[0]) * 0.1
-        tmpx = torch.linspace(xlim[0] - xdelta, xlim[1] + xdelta, 50)
-        tmpy = torch.linspace(ylim[0] - ydelta, ylim[1] + ydelta, 50)
+
+    def get_mlp_raw_y_max(self):
+        pos_seq_emb = self["pos_seq_emb"]
+        neg_seq_emb = self["neg_seq_emb"]
+        third_seq_emb = self["third_seq_emb"]
+        return max(
+            pos_seq_emb[:, 1].max(),
+            neg_seq_emb[:, 1].max(),
+            third_seq_emb[:, 1].max() if third_seq_emb is not None else -np.inf,
+        )
+
+    def get_mlp_y_delta(self):
+        mlp_y_min = self["mlp_raw_y_min"]
+        mlp_y_max = self["mlp_raw_y_max"]
+        return (mlp_y_max - mlp_y_min) * 0.1
+
+    def get_mlp_y_min(self):
+        return self["mlp_raw_y_min"] - self["mlp_y_delta"]
+
+    def get_mlp_y_max(self):
+        return self["mlp_raw_y_max"] + self["mlp_y_delta"]
+
+    def get_mlp_meshgrid(self):
+        mlp_x_min = self["mlp_x_min"]
+        mlp_x_max = self["mlp_x_max"]
+        mlp_y_min = self["mlp_y_min"]
+        mlp_y_max = self["mlp_y_max"]
+        tmpx = torch.linspace(mlp_x_min, mlp_x_max, 20)
+        tmpy = torch.linspace(mlp_y_min, mlp_y_max, 50)
         return torch.meshgrid(tmpx, tmpy)
 
     def get_X_mlp(self):
@@ -518,39 +580,75 @@ class ComputationCache:
         DEVICE = self["DEVICE"]
         return torch.stack([X_mlp, Y_mlp], dim=-1).to(DEVICE).view(-1, 2)
 
-    def get_out_meshgrid(self):
+    def get_out_raw_x_min(self):
         pos_seq_mlp = self["pos_seq_mlp"]
         neg_seq_mlp = self["neg_seq_mlp"]
         third_seq_mlp = self["third_seq_mlp"]
+        return min(
+            pos_seq_mlp[:, 0].min(),
+            neg_seq_mlp[:, 0].min(),
+            third_seq_mlp[:, 0].min() if third_seq_mlp is not None else np.inf,
+        )
 
-        xlim = (
-            min(
-                pos_seq_mlp[:, 0].min(),
-                neg_seq_mlp[:, 0].min(),
-                third_seq_mlp[:, 0].min() if third_seq_mlp is not None else np.inf,
-            ),
-            max(
-                pos_seq_mlp[:, 0].max(),
-                neg_seq_mlp[:, 0].max(),
-                third_seq_mlp[:, 0].max() if third_seq_mlp is not None else -np.inf,
-            ),
+    def get_out_raw_x_max(self):
+        pos_seq_mlp = self["pos_seq_mlp"]
+        neg_seq_mlp = self["neg_seq_mlp"]
+        third_seq_mlp = self["third_seq_mlp"]
+        return max(
+            pos_seq_mlp[:, 0].max(),
+            neg_seq_mlp[:, 0].max(),
+            third_seq_mlp[:, 0].max() if third_seq_mlp is not None else -np.inf,
         )
-        xdelta = (xlim[1] - xlim[0]) * 0.1
-        ylim = (
-            min(
-                pos_seq_mlp[:, 1].min(),
-                neg_seq_mlp[:, 1].min(),
-                third_seq_mlp[:, 1].min() if third_seq_mlp is not None else np.inf,
-            ),
-            max(
-                pos_seq_mlp[:, 1].max(),
-                neg_seq_mlp[:, 1].max(),
-                third_seq_mlp[:, 1].max() if third_seq_mlp is not None else -np.inf,
-            ),
+
+    def get_out_x_delta(self):
+        out_x_min = self["out_raw_x_min"]
+        out_x_max = self["out_raw_x_max"]
+        return (out_x_max - out_x_min) * 0.1
+
+    def get_out_x_min(self):
+        return self["out_raw_x_min"] - self["out_x_delta"]
+
+    def get_out_x_max(self):
+        return self["out_raw_x_max"] + self["out_x_delta"]
+
+    def get_out_raw_y_min(self):
+        pos_seq_mlp = self["pos_seq_mlp"]
+        neg_seq_mlp = self["neg_seq_mlp"]
+        third_seq_mlp = self["third_seq_mlp"]
+        return min(
+            pos_seq_mlp[:, 1].min(),
+            neg_seq_mlp[:, 1].min(),
+            third_seq_mlp[:, 1].min() if third_seq_mlp is not None else np.inf,
         )
-        ydelta = (ylim[1] - ylim[0]) * 0.1
-        tmpx = torch.linspace(xlim[0] - xdelta, xlim[1] + xdelta, 50)
-        tmpy = torch.linspace(ylim[0] - ydelta, ylim[1] + ydelta, 50)
+
+    def get_out_raw_y_max(self):
+        pos_seq_mlp = self["pos_seq_mlp"]
+        neg_seq_mlp = self["neg_seq_mlp"]
+        third_seq_mlp = self["third_seq_mlp"]
+        return max(
+            pos_seq_mlp[:, 1].max(),
+            neg_seq_mlp[:, 1].max(),
+            third_seq_mlp[:, 1].max() if third_seq_mlp is not None else -np.inf,
+        )
+
+    def get_out_y_delta(self):
+        out_y_min = self["out_raw_y_min"]
+        out_y_max = self["out_raw_y_max"]
+        return (out_y_max - out_y_min) * 0.1
+
+    def get_out_y_min(self):
+        return self["out_raw_y_min"] - self["out_y_delta"]
+
+    def get_out_y_max(self):
+        return self["out_raw_y_max"] + self["out_y_delta"]
+
+    def get_out_meshgrid(self):
+        out_x_min = self["out_x_min"]
+        out_x_max = self["out_x_max"]
+        out_y_min = self["out_y_min"]
+        out_y_max = self["out_y_max"]
+        tmpx = torch.linspace(out_x_min, out_x_max, 20)
+        tmpy = torch.linspace(out_y_min, out_y_max, 50)
         return torch.meshgrid(tmpx, tmpy)
 
     def get_X_out(self):
@@ -567,8 +665,7 @@ class ComputationCache:
 
     def get_token_emb(self):
         weights = self["weights"]
-        vocab_size = self["vocab_size"]
-        return weights["token_emb.weight"][:vocab_size]
+        return weights["token_emb.weight"]
 
     def get_pos_emb(self):
         weights = self["weights"]
@@ -687,13 +784,15 @@ class ComputationCache:
         X_mlp = self["X_mlp"]
         grid_mlp = self["grid_mlp"]
         norm = self["norm"]
-        return F.softmax(model.output(grid_mlp + model.mlp(norm(grid_mlp))), dim=-1)[..., 1].view(X_mlp.shape)
+        Z = F.softmax(model.output(grid_mlp + model.mlp(norm(grid_mlp))), dim=-1)
+        return Z.view((*X_mlp.shape, -1))
 
     def get_out_out(self):
         model = self["model"]
         X_out = self["X_out"]
         grid_out = self["grid_out"]
-        return F.softmax(model.output(grid_out), dim=-1)[..., 1].view(X_out.shape)
+        Z = F.softmax(model.output(grid_out), dim=-1)
+        return Z.view((*X_out.shape, -1))
 
     def get_pos_seq_prob(self):
         model = self["model"]
@@ -715,18 +814,46 @@ class ComputationCache:
         third_seq_res = self["third_seq_res"]
         return F.softmax(model.output(third_seq_res), dim=-1)[:, :vocab_size]
 
+    def get_simplex_vertices(self):
+        return torch.tensor(
+            [
+                [0, 0],
+                [1, 0],
+                [0.5, math.sqrt(3) / 2],
+            ],
+            device=self["DEVICE"],
+            dtype=torch.float32,
+        )
+
+    def get_pos_simplex(self):
+        pos_seq_prob = self["pos_seq_prob"]
+        vertices = self["simplex_vertices"]
+        return pos_seq_prob @ vertices
+
+    def get_neg_simplex(self):
+        neg_seq_prob = self["neg_seq_prob"]
+        vertices = self["simplex_vertices"]
+        return neg_seq_prob @ vertices
+
+    def get_third_simplex(self):
+        if self["vocab_size"] == 2:
+            return None
+        third_seq_prob = self["third_seq_prob"]
+        vertices = self["simplex_vertices"]
+        return third_seq_prob @ vertices
+
 
 def show_token_emb(ax, kwargs):
     token_emb = kwargs["token_emb"]
-    vocab_size = len(token_emb)
+    vocab_size = kwargs["vocab_size"]
     ax.scatter(
         token_emb[:, 0],
         token_emb[:, 1],
-        c=np.arange(vocab_size),
+        c=np.arange(len(token_emb)),
         cmap="tab20",
         s=100,
     )
-    for i, (x, y) in enumerate(token_emb):
+    for i, (x, y) in enumerate(token_emb[:vocab_size]):
         ax.text(x, y, i, fontsize=kwargs["text_fontsize"])
     ax.grid()
     ax.set_title("Token Embeddings $E$", fontsize=kwargs["title_fontsize"])
@@ -813,7 +940,7 @@ def show_emb(ax, kwargs):
             marker=kwargs["neg_marker"],
             s=100,
         )
-    for i, (x, y) in enumerate(emb):
+    for i, (x, y) in enumerate(emb[: vocab_size * length]):
         ax.text(x, y, (i // 12, i % 12), fontsize=kwargs["text_fontsize"])
     ax.grid()
     ax.set_title("Embeddings $E + P$", fontsize=kwargs["title_fontsize"])
@@ -874,7 +1001,7 @@ def show_norm_emb(ax, kwargs):
             marker=kwargs["neg_marker"],
             s=100,
         )
-    for i, (x, y) in enumerate(norm_emb):
+    for i, (x, y) in enumerate(norm_emb[: vocab_size * length]):
         ax.text(x, y, (i // 12, i % 12), fontsize=kwargs["text_fontsize"])
     ax.arrow(0, 0, query[0, 0], query[0, 1], head_width=0.1, head_length=0.1, fc="r", ec="r")
     ax.text(0, 0, "query", fontsize=kwargs["text_fontsize"] + 2, color="r")
@@ -943,7 +1070,7 @@ def show_value(ax, kwargs):
             marker=kwargs["neg_marker"],
             s=100,
         )
-    for i, (x, y) in enumerate(emb_val):
+    for i, (x, y) in enumerate(emb_val[: vocab_size * length]):
         ax.text(x, y, (i // 12, i % 12), fontsize=kwargs["text_fontsize"])
     ax.grid()
     ax.set_title("Value", fontsize=kwargs["title_fontsize"])
@@ -973,6 +1100,12 @@ def show_seq_emb(ax, kwargs):
         cmap="tab20b",
         s=100,
     )
+    for i, (x, y) in enumerate(pos_seq_emb):
+        t = ax.text(x, y, pos_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
+        t.set_alpha(0.3)
+    for i, (x, y) in enumerate(neg_seq_emb):
+        t = ax.text(x, y, neg_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
+        t.set_alpha(0.3)
     if third_seq_emb is not None:
         ax.scatter(
             third_seq_emb[:, 0],
@@ -982,13 +1115,6 @@ def show_seq_emb(ax, kwargs):
             cmap="tab20b",
             s=100,
         )
-    for i, (x, y) in enumerate(pos_seq_emb):
-        t = ax.text(x, y, pos_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
-        t.set_alpha(0.3)
-    for i, (x, y) in enumerate(neg_seq_emb):
-        t = ax.text(x, y, neg_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
-        t.set_alpha(0.3)
-    if third_seq_emb is not None:
         for i, (x, y) in enumerate(third_seq_emb):
             t = ax.text(x, y, third_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
             t.set_alpha(0.3)
@@ -997,8 +1123,6 @@ def show_seq_emb(ax, kwargs):
 
 
 def show_level_line(ax, kwargs):
-    X_mlp = kwargs["X_mlp"]
-    Y_mlp = kwargs["Y_mlp"]
     out_mlp = kwargs["out_mlp"]
     pos_seq_emb = kwargs["pos_seq_emb"]
     neg_seq_emb = kwargs["neg_seq_emb"]
@@ -1006,7 +1130,25 @@ def show_level_line(ax, kwargs):
     pos_inputs = kwargs["pos_inputs"]
     neg_inputs = kwargs["neg_inputs"]
     third_inputs = kwargs["third_inputs"]
-    ax.contourf(X_mlp, Y_mlp, out_mlp, cmap="coolwarm", vmin=0, vmax=1)
+
+    if out_mlp.shape[-1] == 2:
+        X_mlp = kwargs["X_mlp"]
+        Y_mlp = kwargs["Y_mlp"]
+        ax.contourf(X_mlp, Y_mlp, out_mlp, cmap="coolwarm", vmin=0, vmax=1)
+    else:
+        x_min = kwargs["mlp_x_min"]
+        x_max = kwargs["mlp_x_max"]
+        y_min = kwargs["mlp_y_min"]
+        y_max = kwargs["mlp_y_max"]
+        ax.imshow(
+            out_mlp.transpose(0, 1),
+            extent=(x_min, x_max, y_min, y_max),
+            interpolation="bilinear",
+            alpha=0.75,
+            origin="lower",
+            aspect="auto",
+        )
+
     ax.scatter(
         pos_seq_emb[:, 0],
         pos_seq_emb[:, 1],
@@ -1023,6 +1165,12 @@ def show_level_line(ax, kwargs):
         cmap="tab20b",
         s=100,
     )
+    for i, (x, y) in enumerate(pos_seq_emb):
+        t = ax.text(x, y, pos_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
+        t.set_alpha(0.3)
+    for i, (x, y) in enumerate(neg_seq_emb):
+        t = ax.text(x, y, neg_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
+        t.set_alpha(0.3)
     if third_seq_emb is not None:
         ax.scatter(
             third_seq_emb[:, 0],
@@ -1032,13 +1180,6 @@ def show_level_line(ax, kwargs):
             cmap="tab20b",
             s=100,
         )
-    for i, (x, y) in enumerate(pos_seq_emb):
-        t = ax.text(x, y, pos_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
-        t.set_alpha(0.3)
-    for i, (x, y) in enumerate(neg_seq_emb):
-        t = ax.text(x, y, neg_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
-        t.set_alpha(0.3)
-    if third_seq_emb is not None:
         for i, (x, y) in enumerate(third_seq_emb):
             t = ax.text(x, y, third_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
             t.set_alpha(0.3)
@@ -1048,8 +1189,10 @@ def show_level_line(ax, kwargs):
 def show_norm_input(ax, kwargs):
     norm_pos_seq = kwargs["norm_pos_seq"]
     norm_neg_seq = kwargs["norm_neg_seq"]
+    norm_third_seq = kwargs["norm_third_seq"]
     pos_inputs = kwargs["pos_inputs"]
     neg_inputs = kwargs["neg_inputs"]
+    third_inputs = kwargs["third_inputs"]
     ax.scatter(
         norm_pos_seq[:, 0],
         norm_pos_seq[:, 1],
@@ -1072,6 +1215,18 @@ def show_norm_input(ax, kwargs):
     for i, (x, y) in enumerate(norm_neg_seq):
         t = ax.text(x, y, neg_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
         t.set_alpha(0.3)
+    if norm_third_seq is not None:
+        ax.scatter(
+            norm_third_seq[:, 0],
+            norm_third_seq[:, 1],
+            c=np.arange(norm_third_seq.shape[0]),
+            marker=kwargs["third_marker"],
+            cmap="tab20b",
+            s=100,
+        )
+        for i, (x, y) in enumerate(norm_third_seq):
+            t = ax.text(x, y, third_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
+            t.set_alpha(0.3)
     ax.set_title(r"Normed Input: $\xi / \|\xi\|$", fontsize=kwargs["title_fontsize"])
 
 
@@ -1164,10 +1319,13 @@ def show_mlp_emitters(ax, kwargs):
 def show_mlp_output(ax, kwargs):
     pos_seq_mlp = kwargs["pos_seq_mlp"]
     neg_seq_mlp = kwargs["neg_seq_mlp"]
+    third_seq_mlp = kwargs["third_seq_mlp"]
     pos_seq_res = kwargs["pos_seq_res"]
     neg_seq_res = kwargs["neg_seq_res"]
+    third_seq_res = kwargs["third_seq_res"]
     pos_inputs = kwargs["pos_inputs"]
     neg_inputs = kwargs["neg_inputs"]
+    third_inputs = kwargs["third_inputs"]
     ax.scatter(
         pos_seq_mlp[:, 0],
         pos_seq_mlp[:, 1],
@@ -1209,18 +1367,57 @@ def show_mlp_output(ax, kwargs):
         s=100,
         alpha=0.2,
     )
+    if third_seq_mlp is not None:
+        ax.scatter(
+            third_seq_mlp[:, 0],
+            third_seq_mlp[:, 1],
+            c=np.arange(third_seq_mlp.shape[0]),
+            marker=kwargs["third_marker"],
+            cmap="tab20b",
+            s=100,
+        )
+        ax.scatter(
+            third_seq_res[:, 0],
+            third_seq_res[:, 1],
+            c=np.arange(third_seq_res.shape[0]),
+            marker=kwargs["neg_marker"],
+            cmap="tab20b",
+            s=100,
+            alpha=0.2,
+        )
+        for i, (x, y) in enumerate(third_seq_mlp):
+            t = ax.text(x, y, third_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
+            t.set_alpha(0.3)
+
     ax.set_title("Transformed Sequences with residual", fontsize=kwargs["title_fontsize"])
 
 
 def show_output_level_lines(ax, kwargs):
-    X_out = kwargs["X_out"]
-    Y_out = kwargs["Y_out"]
     out_out = kwargs["out_out"]
     pos_seq_mlp = kwargs["pos_seq_mlp"]
     neg_seq_mlp = kwargs["neg_seq_mlp"]
+    third_seq_mlp = kwargs["third_seq_mlp"]
     pos_inputs = kwargs["pos_inputs"]
     neg_inputs = kwargs["neg_inputs"]
-    ax.contourf(X_out, Y_out, out_out, cmap="coolwarm", vmin=0, vmax=1)
+    third_inputs = kwargs["third_inputs"]
+    if out_out.shape[-1] == 2:
+        X_out = kwargs["X_out"]
+        Y_out = kwargs["Y_out"]
+        ax.contourf(X_out, Y_out, out_out, cmap="coolwarm", vmin=0, vmax=1)
+    else:
+        x_min = kwargs["out_x_min"]
+        x_max = kwargs["out_x_max"]
+        y_min = kwargs["out_y_min"]
+        y_max = kwargs["out_y_max"]
+        ax.imshow(
+            out_out.transpose(1, 0),
+            extent=(x_min, x_max, y_min, y_max),
+            interpolation="bilinear",
+            alpha=0.75,
+            aspect="auto",
+            origin="lower",
+        )
+
     ax.scatter(
         pos_seq_mlp[:, 0],
         pos_seq_mlp[:, 1],
@@ -1243,35 +1440,63 @@ def show_output_level_lines(ax, kwargs):
     for i, (x, y) in enumerate(neg_seq_mlp):
         t = ax.text(x, y, neg_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
         t.set_alpha(0.3)
+    if third_seq_mlp is not None:
+        ax.scatter(
+            third_seq_mlp[:, 0],
+            third_seq_mlp[:, 1],
+            c=np.arange(third_seq_mlp.shape[0]),
+            marker=kwargs["third_marker"],
+            cmap="tab20b",
+            s=100,
+        )
+        for i, (x, y) in enumerate(third_seq_mlp):
+            t = ax.text(x, y, third_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
+            t.set_alpha(0.3)
     ax.set_title("Output level lines", fontsize=kwargs["title_fontsize"])
 
 
 def show_output(ax, kwargs):
-    pos_seq_prob = kwargs["pos_seq_prob"]
-    neg_seq_prob = kwargs["neg_seq_prob"]
-    inputs = kwargs["inputs"]
+    # get simplex embeddings
+    pos_simplex = kwargs["pos_simplex"]
+    neg_simplex = kwargs["neg_simplex"]
+    third_simplex = kwargs["third_simplex"]
+    pos_inputs = kwargs["pos_inputs"]
+    neg_inputs = kwargs["neg_inputs"]
+    third_inputs = kwargs["third_inputs"]
     ax.scatter(
-        pos_seq_prob[:, 0],
-        pos_seq_prob[:, 1],
-        c=np.arange(pos_seq_prob.shape[0]),
+        pos_simplex[:, 0],
+        pos_simplex[:, 1],
+        c=np.arange(pos_simplex.shape[0]),
         marker=kwargs["pos_marker"],
         cmap="tab20b",
         s=100,
     )
     ax.scatter(
-        neg_seq_prob[:, 0],
-        neg_seq_prob[:, 1],
-        c=np.arange(neg_seq_prob.shape[0]),
+        neg_simplex[:, 0],
+        neg_simplex[:, 1],
+        c=np.arange(neg_simplex.shape[0]),
         marker=kwargs["neg_marker"],
         cmap="tab20b",
         s=100,
     )
-    for i, (x, y) in enumerate(pos_seq_prob):
-        t = ax.text(x, y, inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
+    for i, (x, y) in enumerate(pos_simplex):
+        t = ax.text(x, y, pos_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
         t.set_alpha(0.3)
-    for i, (x, y) in enumerate(neg_seq_prob):
-        t = ax.text(x, y, inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
+    for i, (x, y) in enumerate(neg_simplex):
+        t = ax.text(x, y, neg_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
         t.set_alpha(0.3)
+    if third_simplex is not None:
+        ax.scatter(
+            third_simplex[:, 0],
+            third_simplex[:, 1],
+            c=np.arange(third_simplex.shape[0]),
+            marker=kwargs["third_marker"],
+            cmap="tab20b",
+            s=100,
+        )
+        for i, (x, y) in enumerate(third_simplex):
+            t = ax.text(x, y, third_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
+            t.set_alpha(0.3)
     ax.set_title("Output", fontsize=kwargs["title_fontsize"])
 
 
