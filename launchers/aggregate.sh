@@ -15,4 +15,4 @@
 #SBATCH --gpus-per-node=0
 
 python /private/home/vivc/code/memory-theory/visualization/visualization.py all_aggregate --save-ext seed
-python /private/home/vivc/code/memory-theory/visualization/visualization.py all_aggregate --save-ext finetune
+python /private/home/vivc/code/memory-theory/visualization/visualization.py all_aggregate --save-ext finetune/seed --suffix success

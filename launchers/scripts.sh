@@ -45,3 +45,9 @@
 #   python /private/home/vivc/code/memory-theory/visualization/visualization.py frame --epoch 0 --file-format png --save-ext finetune/seed --suffix success --unique-id $name
 #   python /private/home/vivc/code/memory-theory/visualization/visualization.py frame --epoch 1000 --file-format png --save-ext finetune/seed --suffix success --unique-id $name
 # done < /private/home/vivc/code/memory-theory/configs/success/finetune/seed.jsonl
+
+# while read line; do
+#   name=$(echo $line | jq '.id')
+#   python /private/home/vivc/code/memory-theory/visualization/visualization.py frame --epoch 0 --file-format png --save-ext seed --suffix success --unique-id $name
+#   python /private/home/vivc/code/memory-theory/visualization/visualization.py frame --epoch 1000 --file-format png --save-ext seed --suffix success --unique-id $name
+# done < /private/home/vivc/code/memory-theory/configs/success/seed.jsonl
