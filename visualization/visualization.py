@@ -995,7 +995,7 @@ def show_norm_emb(ax, kwargs):
         ax.text(x, y, (i // 12, i % 12), fontsize=kwargs["text_fontsize"])
     ax.arrow(0, 0, query[0, 0], query[0, 1], head_width=0.1, head_length=0.1, fc="r", ec="r")
     ax.text(0, 0, "query", fontsize=kwargs["text_fontsize"] + 2, color="r")
-    ax.set_title(r"Normed Embeddings $Z(x,t) \propto E(x) + P(t)$", fontsize=kwargs["title_fontsize"])
+    ax.set_title(r"Embeddings $Z(x,t) \propto E(x) + P(t)$", fontsize=kwargs["title_fontsize"])
 
 
 def show_attn(ax, kwargs):
@@ -1173,7 +1173,7 @@ def show_level_line(ax, kwargs):
         for i, (x, y) in enumerate(third_seq_emb):
             t = ax.text(x, y, third_inputs[i].numpy().tolist(), fontsize=kwargs["text_fontsize"])
             t.set_alpha(0.3)
-    ax.set_title(r"Transform level lines: $\xi \to p(y=1|\xi)$", fontsize=kwargs["title_fontsize"])
+    ax.set_title(r"Transform: $\xi \to p(y|\xi)$", fontsize=kwargs["title_fontsize"])
 
 
 def show_norm_input(ax, kwargs):
