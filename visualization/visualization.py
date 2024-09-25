@@ -1124,7 +1124,7 @@ def show_level_line(ax, kwargs):
     if out_mlp.shape[-1] == 2:
         X_mlp = kwargs["X_mlp"]
         Y_mlp = kwargs["Y_mlp"]
-        ax.contourf(X_mlp, Y_mlp, out_mlp, cmap="coolwarm", vmin=0, vmax=1)
+        ax.contourf(X_mlp, Y_mlp, out_mlp[..., 0], cmap="coolwarm", vmin=0, vmax=1)
     else:
         x_min = kwargs["mlp_x_min"]
         x_max = kwargs["mlp_x_max"]
@@ -1393,7 +1393,7 @@ def show_output_level_lines(ax, kwargs):
     if out_out.shape[-1] == 2:
         X_out = kwargs["X_out"]
         Y_out = kwargs["Y_out"]
-        ax.contourf(X_out, Y_out, out_out, cmap="coolwarm", vmin=0, vmax=1)
+        ax.contourf(X_out, Y_out, out_out[..., 0], cmap="coolwarm", vmin=0, vmax=1)
     else:
         x_min = kwargs["out_x_min"]
         x_max = kwargs["out_x_max"]
