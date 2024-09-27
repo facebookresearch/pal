@@ -356,8 +356,8 @@ def visualization_backend(
     grid_size = plot_config["grid_size"]
     plot_requests = plot_config["plots"]
 
-    WIDTH = 5 * grid_size[1]
-    HEIGHT = 5 * grid_size[0]
+    WIDTH = 4 * grid_size[1]
+    HEIGHT = 4 * grid_size[0]
     fig, axes = plt.subplots(*grid_size, figsize=(WIDTH, HEIGHT))
     if title is not None:
         fig.suptitle(title)
@@ -878,7 +878,7 @@ def show_pos_emb(ax, kwargs):
         marker=kwargs["neg_marker"],
     )
     for i, (x, y) in enumerate(pos_emb):
-        ax.text(x, y, i, fontsize=kwargs["text_fontsize"])
+        ax.text(x, y, i + 1, fontsize=kwargs["text_fontsize"])
     ax.grid()
     ax.set_title("Position Embeddings $P$", fontsize=kwargs["title_fontsize"])
 
@@ -939,7 +939,7 @@ def show_emb(ax, kwargs):
             s=100,
         )
     for i, (x, y) in enumerate(emb[: vocab_size * length]):
-        ax.text(x, y, (i // 12, i % 12), fontsize=kwargs["text_fontsize"])
+        ax.text(x, y, (i // 12, i % 12 + 1), fontsize=kwargs["text_fontsize"])
     ax.grid()
     ax.set_title("Embeddings $E + P$", fontsize=kwargs["title_fontsize"])
 
@@ -1000,7 +1000,7 @@ def show_norm_emb(ax, kwargs):
             s=100,
         )
     for i, (x, y) in enumerate(norm_emb[: vocab_size * length]):
-        ax.text(x, y, (i // 12, i % 12), fontsize=kwargs["text_fontsize"])
+        ax.text(x, y, (i // 12, i % 12 + 1), fontsize=kwargs["text_fontsize"])
     ax.arrow(0, 0, query[0, 0], query[0, 1], head_width=0.1, head_length=0.1, fc="r", ec="r")
     ax.text(0, 0, "query", fontsize=kwargs["text_fontsize"] + 2, color="r")
     ax.set_title(r"Embeddings $Z(x,t) \propto E(x) + P(t)$", fontsize=kwargs["title_fontsize"])
@@ -1069,9 +1069,9 @@ def show_value(ax, kwargs):
             s=100,
         )
     for i, (x, y) in enumerate(emb_val[: vocab_size * length]):
-        ax.text(x, y, (i // 12, i % 12), fontsize=kwargs["text_fontsize"])
+        ax.text(x, y, (i // 12, i % 12 + 1), fontsize=kwargs["text_fontsize"])
     ax.grid()
-    ax.set_title("Value", fontsize=kwargs["title_fontsize"])
+    ax.set_title("Value transform: VZ(x, t)", fontsize=kwargs["title_fontsize"])
 
 
 def show_seq_emb(ax, kwargs):
