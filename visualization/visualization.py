@@ -1507,6 +1507,7 @@ def show_loss(ax, kwargs):
     ax.set_title("Loss", fontsize=kwargs["title_fontsize"])
     ax.legend()
     ax.set_xlabel("Iterations")
+    ax.set_yscale("log")
     ax.set_ylabel("Loss")
 
 
