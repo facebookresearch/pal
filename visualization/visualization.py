@@ -39,7 +39,8 @@ if USETEX:
 
 
 def show_frame(
-    unique_id: int, epoch: int, file_format: str = None, save_ext: str = None, suffix: str = None, title: str = None
+    unique_id: int, epoch: int, file_format: str = None, save_ext: str = None, suffix: str = None, title: str = None,
+    plot_config: str = None
 ):
     """
     Show a single frame for a given unique ID.
@@ -68,6 +69,7 @@ def show_frame(
         save_ext=save_ext,
         suffix=suffix,
         title=title,
+        plot_config=plot_config
     )
 
 
@@ -363,8 +365,11 @@ def visualization_backend(
     # frame creation
 
     def update(frame):
-        for ax in axes.flat:
-            ax.clear()
+        if hasattr(axes, "flat"):
+            for ax in axes.flat:
+                ax.clear()
+        else:
+            axes.clear()
 
         model.load_state_dict(weights[frame])
         variables = ComputationCache(
@@ -383,7 +388,10 @@ def visualization_backend(
             plot_func = plot_functions.get(plot_type)
 
             if plot_func:
-                ax = axes[position]
+                if hasattr(axes, "flat"):
+                    ax = axes[position]
+                else:
+                    ax = axes
                 plot_func(ax, variables)
             else:
                 logger.info(f"Plot type {plot_type} not recognized.")
