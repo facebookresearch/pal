@@ -1,3 +1,11 @@
+"""
+License
+-------
+This source code is licensed under the CC license found in the LICENSE file
+in the root directory of this source tree.
+
+@ 2024, Meta
+"""
 
 from math import sqrt
 
@@ -40,7 +48,7 @@ def get_embeddings(n, d, norm=True):
 
 class LN(nn.Module):
     def forward(self, x):
-        return x / th.sqrt((x ** 2).sum(dim=1) + 1e-6).unsqueeze(1)
+        return x / th.sqrt((x**2).sum(dim=1) + 1e-6).unsqueeze(1)
 
 
 class AssMem(nn.Module):

@@ -1,6 +1,14 @@
 """
 Script to launch scaling laws experiments
+
+License
+-------
+This source code is licensed under the CC license found in the LICENSE file
+in the root directory of this source tree.
+
+@ 2024, Meta
 """
+
 import argparse
 import json
 import logging
@@ -11,13 +19,7 @@ from random import seed
 
 import torch as th
 import torch.nn.functional as F
-
-from utils import (
-    AssMem,
-    AssMemExp,
-    AssMemLearnable,
-)
-
+from utils import AssMem, AssMemExp, AssMemLearnable
 
 # Reproducibility and Logging
 
@@ -86,9 +88,7 @@ def run_exp(config):
                 {"params": [model.E, model.UT], "lr": config.learning_rate / sqrt(d)},
                 {"params": [model.W], "lr": config.learning_rate / d},
             ]
-            opti = th.optim.Adam(
-                param_groups, betas=(0, 0), weight_decay=config.weight_decay
-            )
+            opti = th.optim.Adam(param_groups, betas=(0, 0), weight_decay=config.weight_decay)
         elif config.model == "exponential":
             opti = th.optim.Adam(
                 model.parameters(),
@@ -112,8 +112,8 @@ def run_exp(config):
     logging.info(f"running {niter} iters with batch size {config.batch_size}")
     for i in range(niter):
         # print('.', end='', flush=True)
-        x = X[i * config.batch_size:(i + 1) * config.batch_size]
-        y = Y[i * config.batch_size:(i + 1) * config.batch_size]
+        x = X[i * config.batch_size : (i + 1) * config.batch_size]
+        y = Y[i * config.batch_size : (i + 1) * config.batch_size]
 
         out = model(x)
         loss = F.cross_entropy(out, y)
@@ -262,9 +262,7 @@ if __name__ == "__main__":
 
     outdir = Path(config.root_dir) / config.name
     outdir.mkdir(parents=True, exist_ok=True)
-    outfile = open(
-        outdir / f"{config.name}_{config.task_offset + config.task_id}.jsonl", "w"
-    )
+    outfile = open(outdir / f"{config.name}_{config.task_offset + config.task_id}.jsonl", "w")
 
     grid = {
         "d": [10, 20, 50, 100, 200, 500, 1000],

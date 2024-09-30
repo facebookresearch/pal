@@ -1,3 +1,12 @@
+"""
+License
+-------
+This source code is licensed under the CC license found in the LICENSE file
+in the root directory of this source tree.
+
+@ 2024, Meta
+"""
+
 import torch
 import torch.nn.functional as F
 
@@ -7,9 +16,7 @@ import torch.nn.functional as F
 
 
 # encode sentence to tokens indices
-def language_generator(
-    prompts, tokenizer, model, seq_len, random=False, temperature=1.0, device="cuda"
-):
+def language_generator(prompts, tokenizer, model, seq_len, random=False, temperature=1.0, device="cuda"):
     """
     Generate new tokens from the model given a prompt.
 
@@ -57,9 +64,7 @@ def language_generator(
     nb_sentences, max_len, min_len = len(prompts), max(lenghts), min(lenghts)
 
     seq_idx = torch.zeros((nb_sentences, max_len), dtype=torch.long, device=device)
-    mask = torch.zeros(
-        (nb_sentences, max_len - min_len), dtype=torch.bool, device=device
-    )
+    mask = torch.zeros((nb_sentences, max_len - min_len), dtype=torch.bool, device=device)
     for i, seq in enumerate(tokens):
         seq_idx[i, : len(seq)] = torch.tensor(seq, dtype=torch.long, device=device)
         mask[i, : len(seq) - min_len] = 1

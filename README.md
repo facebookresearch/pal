@@ -5,7 +5,7 @@ Dismantling large language models parts to understand them better, with the hope
 ## Installation
 You can change the paths you want the codebase to operate with by modifying the `user_config.ini` file
 ```bash
-git clone https://github.com/facebookresearch/pal.git
+git clone git@github.com:facebookresearch/pal.git
 cd pal
 pip install -e .
 ```

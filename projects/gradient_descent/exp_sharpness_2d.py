@@ -1,3 +1,12 @@
+"""
+License
+-------
+This source code is licensed under the CC license found in the LICENSE file
+in the root directory of this source tree.
+
+@ 2024, Meta
+"""
+
 import os
 import subprocess
 import sys
@@ -9,28 +18,27 @@ import torch.nn.functional as F
 from matplotlib import rc
 from scipy.linalg import eigh
 
-sys.path.append('.')
-from model import AssociativeMemory, get_embeddings
+sys.path.append(".")
 from config import SAVE_DIR
-
+from model import AssociativeMemory, get_embeddings
 
 os.makedirs(SAVE_DIR, exist_ok=True)
 
-WIDTH = 8.5              # inches (from ICML style file)
-HEIGHT = 8.5 / 1.618     # golden ratio
+WIDTH = 8.5  # inches (from ICML style file)
+HEIGHT = 8.5 / 1.618  # golden ratio
 
-rc('font', family='serif', size=8)
-usetex = not subprocess.run(['which', 'pdflatex']).returncode
-rc('text', usetex=usetex)
+rc("font", family="serif", size=8)
+usetex = not subprocess.run(["which", "pdflatex"]).returncode
+rc("text", usetex=usetex)
 if usetex:
-    rc('text.latex', preamble=r'\usepackage{times}')
+    rc("text.latex", preamble=r"\usepackage{times}")
 
 
 seeds = [39, 81, 7, 9]
 ns = [3, 3, 30, 30]
 x_mins = [-10, -2, -5, -1]
-x_maxs = [10, 2, 5, .5]
-y_mins = [-10, -2, -5, -.5]
+x_maxs = [10, 2, 5, 0.5]
+y_mins = [-10, -2, -5, -0.5]
 y_maxs = [10, 2, 5, 1.5]
 
 x_mins = [-10, -10, -10, -10]
@@ -56,7 +64,7 @@ for seed, n, x_min, x_max, y_min, y_max in zip(seeds, ns, x_mins, x_maxs, y_mins
     all_y = f(all_x)
 
     alpha = 1
-    proba = (all_x + 1.) ** (-alpha)
+    proba = (all_x + 1.0) ** (-alpha)
     proba /= proba.sum()
 
     E = get_embeddings(all_x.max() + 1, d, norm=True)
@@ -125,8 +133,8 @@ for seed, n, x_min, x_max, y_min, y_max in zip(seeds, ns, x_mins, x_maxs, y_mins
 
             # compute loss
             score = model(x)
-            loss = (proba * F.cross_entropy(score, y, reduction='none')).sum()
- 
+            loss = (proba * F.cross_entropy(score, y, reduction="none")).sum()
+
             # update parameters with gradient descent
             optimizer.zero_grad()
             loss.backward()
@@ -142,17 +150,17 @@ for seed, n, x_min, x_max, y_min, y_max in zip(seeds, ns, x_mins, x_maxs, y_mins
         gammas_1.append((W_t[:, 1, 0] - W_t[:, 1, 1]).numpy())
         all_sharpness.append(sharpness)
 
-    fig, axes = plt.subplots(1, 3, figsize=(.48 * WIDTH, .48 * HEIGHT / 3))
+    fig, axes = plt.subplots(1, 3, figsize=(0.48 * WIDTH, 0.48 * HEIGHT / 3))
     ax = axes[0]
-    c = ax.contour(gamma_0, gamma_1, Z_train.reshape(num, num), levels=10, colors='k', linewidths=.5, linestyles='--')
-    c = ax.contourf(gamma_0, gamma_1, Z_accuracy.reshape((num, num)), levels=20, cmap='Blues_r', alpha=.5)
+    c = ax.contour(gamma_0, gamma_1, Z_train.reshape(num, num), levels=10, colors="k", linewidths=0.5, linestyles="--")
+    c = ax.contourf(gamma_0, gamma_1, Z_accuracy.reshape((num, num)), levels=20, cmap="Blues_r", alpha=0.5)
 
     i = np.argmin(Z_train)
     acc = Z_accuracy[i].item()
-    ax.set_title(r'Losses', fontsize=10)
+    ax.set_title(r"Losses", fontsize=10)
 
     for i in range(len(lrs)):
-        a, = ax.plot(gammas_0[i], gammas_1[i], color='C' + str(i + 2), linewidth=1, linestyle='solid')
+        (a,) = ax.plot(gammas_0[i], gammas_1[i], color="C" + str(i + 2), linewidth=1, linestyle="solid")
     ax.set_yticks([])
 
     Z_sharpness = np.zeros((num**2, d**2))
@@ -161,16 +169,24 @@ for seed, n, x_min, x_max, y_min, y_max in zip(seeds, ns, x_mins, x_maxs, y_mins
         Z_sharpness[i] = eigh(model.hessian(all_x, weight=proba).numpy(), eigvals_only=True)
 
     ax = axes[1]
-    c = ax.contour(gamma_0, gamma_1, Z_sharpness.max(axis=1).reshape(num, num), levels=5, colors='k', linewidths=.5, linestyles='--')
-    c = ax.contourf(gamma_0, gamma_1, Z_sharpness.max(axis=1).reshape((num, num)), levels=30, cmap='Blues', alpha=.5)
+    c = ax.contour(
+        gamma_0,
+        gamma_1,
+        Z_sharpness.max(axis=1).reshape(num, num),
+        levels=5,
+        colors="k",
+        linewidths=0.5,
+        linestyles="--",
+    )
+    c = ax.contourf(gamma_0, gamma_1, Z_sharpness.max(axis=1).reshape((num, num)), levels=30, cmap="Blues", alpha=0.5)
     for i in range(len(lrs)):
-        a, = ax.plot(gammas_0[i], gammas_1[i], color='C' + str(i + 2), linewidth=1, linestyle='solid')
-    ax.set_title(r'Sharpness', fontsize=10)
+        (a,) = ax.plot(gammas_0[i], gammas_1[i], color="C" + str(i + 2), linewidth=1, linestyle="solid")
+    ax.set_title(r"Sharpness", fontsize=10)
     ax.set_yticks([])
 
     ax = axes[2]
     for i in range(len(lrs)):
-        b, = ax.plot(all_sharpness[i], color='C' + str(i + 2), linewidth=1, linestyle='solid')
+        (b,) = ax.plot(all_sharpness[i], color="C" + str(i + 2), linewidth=1, linestyle="solid")
     ax.set_yticks([])
-    ax.set_title(r'$t\to \|\nabla^2{\cal L}(W_t)\|_{*}$', fontsize=10)
-    fig.savefig(SAVE_DIR / f'two_particles_{seed}.pdf', bbox_inches='tight', pad_inches=0)
+    ax.set_title(r"$t\to \|\nabla^2{\cal L}(W_t)\|_{*}$", fontsize=10)
+    fig.savefig(SAVE_DIR / f"two_particles_{seed}.pdf", bbox_inches="tight", pad_inches=0)
