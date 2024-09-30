@@ -158,7 +158,6 @@ class TransformerFeedForward(nn.Module):
             Random uniform parameters between -1 and 1 to initialize the model.
         """
         ffn_dim, emb_dim = self.fc1.weight.size()
-        print(emb_dim, ffn_dim)
 
         bound = 1 / math.sqrt(emb_dim)
         w1 = params[:, :emb_dim]
@@ -216,6 +215,10 @@ class ModelConfig:
     ffn_dim: bool = None
     ffn_bias: bool = False
     ffn_dropout: float = 0
+
+    def __init__(self, **kwargs):
+        self.__dict__.update((k, v) for k, v in kwargs.items() if k in self.__annotations__)
+        self.__post_init__()
 
     def __post_init__(self):
         if self.ffn_dim is None:

@@ -2,8 +2,8 @@
 
 # Logging configuration
 #SBATCH --job-name=visu
-#SBATCH --output=~/%u/visu/%j-%a.out
-#SBATCH --error=~/%u/visu/%j-%a.err
+#SBATCH --output=./logs/visu/%A/%a.out
+#SBATCH --error=./logs/visu/%A/%a.err
 
 # Job specification
 #SBATCH --time=5:00:00
