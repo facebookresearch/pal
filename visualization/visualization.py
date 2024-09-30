@@ -39,8 +39,13 @@ if USETEX:
 
 
 def show_frame(
-    unique_id: int, epoch: int, file_format: str = None, save_ext: str = None, suffix: str = None, title: str = None,
-    plot_config: str = None
+    unique_id: int,
+    epoch: int,
+    file_format: str = None,
+    save_ext: str = None,
+    suffix: str = None,
+    title: str = None,
+    plot_config: str = None,
 ):
     """
     Show a single frame for a given unique ID.
@@ -69,7 +74,7 @@ def show_frame(
         save_ext=save_ext,
         suffix=suffix,
         title=title,
-        plot_config=plot_config
+        plot_config=plot_config,
     )
 
 

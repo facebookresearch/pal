@@ -130,16 +130,16 @@ def show_ablation(seed: bool = False, key: str = "test_acc", file_format: str = 
             logger.info(f"Processing seed {seed}.")
             kwargs = {"epoch": nb_epochs, "seed": seed}
 
-            fig, axes = plt.subplots(1, len(exp_ids), figsize=(5 * len(exp_ids), 5))
+            fig, axes = plt.subplots(1, len(exp_ids), figsize=(4 * len(exp_ids), 4))
             for i, exp_id in enumerate(exp_ids):
                 mean, std = extract_averaged_info(all_data[exp_id], group_keys, **kwargs)
                 if exp_id == "mlp_lr":
                     exp_id = "mlp_lr_discount"
                 axes[i].plot(mean[exp_id], mean[key])
-                axes[i].set_title(exp_id)
+                axes[i].set_title(f"Ablation over {exp_id}", fontsize=12)
                 axes[i].set_xscale("log")
                 axes[i].grid()
-            fig.suptitle(seed)
+            # fig.suptitle("Ablation study for a fixed seed", fontsize=12)
             fig.savefig(image_dir / f"{seed}_{key}.{file_format}", bbox_inches="tight")
     else:
         kwargs = {"epoch": nb_epochs}
@@ -151,10 +151,10 @@ def show_ablation(seed: bool = False, key: str = "test_acc", file_format: str = 
                 exp_id = "mlp_lr_discount"
             axes[i].plot(mean[exp_id], mean[key])
             axes[i].fill_between(mean[exp_id], mean[key] - std[key], mean[key] + std[key], alpha=0.2)
-            axes[i].set_title(exp_id)
+            axes[i].set_title(f"Ablation over {exp_id}", fontsize=12)
             axes[i].set_xscale("log")
             axes[i].grid()
-        fig.suptitle("All")
+        # fig.suptitle("Test Accuracy (study over 100 runs)", fontsize=12)
         fig.savefig(image_dir / f"all_{key}.{file_format}", bbox_inches="tight")
 
 
