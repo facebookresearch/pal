@@ -14,22 +14,64 @@ from typing import Union
 import torch
 from torch.distributions import Dirichlet
 
+# -----------------------------------------------------------------------------
+# Random transform and corresponding probability matrix
+# -----------------------------------------------------------------------------
 
-class Sampler:
+
+def generate_transform_matrix(input_size, output_size, probas=None):
     """
-    Attributes
+    Generate a random transform and the corresponding probability matrix.
+
+    Parameters
     ----------
-    probas
-        The probability distribution of the output space.
     input_size
         The size of the input space.
     output_size
         The size of the output space.
+    probas
+        The probability of sampling the different outputs.
+
+    Returns
+    -------
+    probas
+        Matrix associated with the random transform.
+        `probas[i, j] = 1` if the `i`-th input is transformed into the `j`-th output.
+    """
+    if probas is None:
+        transform = torch.randint(0, output_size, (input_size,))
+    else:
+        transform = torch.multinomial(probas, input_size, replacement=True)
+    probas = torch.zeros(input_size, output_size)
+    probas[torch.arange(input_size), transform] = 1
+    return probas
+
+
+# -----------------------------------------------------------------------------
+# Sampler classes
+# -----------------------------------------------------------------------------
+
+
+class Sampler:
+    """
+    Sampler class.
+
+    Attributes
+    ----------
+    input_size
+        The size of the input space.
+    output_size
+        The size of the output space.
+    probas
+        Matrix of size input_size x output_size.
+        Each row is a probability distribution over the output space.
+        It corresponds to the conditional probability of the output given the input.
     """
 
     def __init__(self, input_size: int, output_size: int):
         self.input_size = input_size
         self.output_size = output_size
+        self.probas = generate_transform_matrix(input_size, output_size)
 
     def sample(self, n_samples: int = 1):
         """
@@ -100,7 +142,7 @@ class Sampler:
 
 class DirichletSampler(Sampler):
     """
-    Sample output distribution from a Dirichlet distribution.
+    Sample output distributions from a Dirichlet distribution.
     """
 
     def __init__(self, input_size: int, output_size: int, alpha: Union[float, list[float]]):
@@ -125,26 +167,29 @@ class DirichletSampler(Sampler):
 
 
 class AggregatedSampler(Sampler):
-    def __init__(self, weights: list[float], all_probas: list[torch.Tensor], epsilon: float = 0):
+    """
+    Aggregate sampler together.
+    """
+
+    def __init__(self, all_probas: list[torch.Tensor], weights: list[float] = None, epsilon: float = 0):
         """
         Parameters
         ----------
-        input_size
-            The size of the input space.
-        output_size
-            The size of the output space.
-        weights
-            The logits weights to choose a deterministic sampler.
         all_probas
-            The list of samplers to choose from.
+            The list of probability matrices.
+        weights
+            The logits weights to aggregate probability matrices.
         epsilon
             The probability of choosing the uniform sampler.
         """
         input_size, output_size = all_probas[0].shape
-        super().__init__(input_size, output_size)
+        self.input_size = input_size
+        self.output_size = output_size
         self.probas = torch.ones((input_size, output_size))
         self.probas *= epsilon / output_size
 
+        if weights is None:
+            weights = torch.zeros(len(all_probas), dtype=torch.float)
         if not isinstance(weights, torch.Tensor):
             weights = torch.tensor(weights).to(torch.float)
         weights = torch.exp(weights)
