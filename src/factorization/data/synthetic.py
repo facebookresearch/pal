@@ -15,139 +15,143 @@ import torch
 from torch.distributions import Dirichlet
 
 # -----------------------------------------------------------------------------
-# Random transform and corresponding transform matrix
-# -----------------------------------------------------------------------------
-
-
-def generate_transform(input_size: int, output_size: int, probas: torch.Tensor = None) -> torch.Tensor:
-    """
-    Generate a random transform.
-
-    Parameters
-    ----------
-    input_size
-        The size of the input space.
-    output_size
-        The size of the output space.
-    probas
-        The probability of sampling the different outputs.
-
-    Returns
-    -------
-    transform
-        Tensor of `input_size` integers representing the random transform.
-    """
-    if probas is None:
-        transform = torch.randint(0, output_size, (input_size,))
-    else:
-        transform = torch.multinomial(probas, input_size, replacement=True)
-    return transform
-
-
-def transform_to_probas(transform: torch.Tensor, output_size: int) -> torch.Tensor:
-    """
-    Generate the matrix associated with a random transform.
-
-    Parameters
-    ----------
-    transform
-        The random transform.
-    output_size
-        The size of the output space.
-
-    Returns
-    -------
-    probas
-        Matrix associated with the random transform.
-        `probas[i, j] = 1` if the `i`-th input is transformed into the `j`-th output.
-    """
-    probas = torch.zeros(len(transform), output_size)
-    probas[torch.arange(len(transform)), transform] = 1
-    return probas
-
-
-def generate_transform_matrix(input_size: int, output_size: int, probas: torch.Tensor = None) -> torch.Tensor:
-    """
-    Generate a random deterministic transformation matrix.
-
-    Parameters
-    ----------
-    input_size
-        The size of the input space.
-    output_size
-        The size of the output space.
-    probas
-        The probability of sampling the different outputs.
-
-    Returns
-    -------
-    probas
-        Matrix of size `input_size x output_size` representing the probability of sampling the different outputs.
-    """
-    transform = generate_transform(input_size, output_size, probas)
-    probas = transform_to_probas(transform, output_size)
-    return probas
-
-
-# -----------------------------------------------------------------------------
 # Factors decompisition and recomposition
 # -----------------------------------------------------------------------------
 
 
 class Factorizer:
     """
-    Factorizer class.
+    Factorizer of numbers into factors.
 
     Attributes
     ----------
-    ps
-        List of numbers to use for the factorization.
+    divisors
+        List of `k` divisors to factorize numbers.
     """
 
-    def __init__(self, ps: torch.Tensor):
-        self.ps = ps
+    def __init__(self, divisors: torch.Tensor):
+        self.divisors = divisors
 
-    def __call__(self, x: torch.Tensor) -> torch.Tensor:
+    def __call__(self, inputs: torch.Tensor) -> torch.Tensor:
         """
         Get the factors of a number.
 
         Parameters
         ----------
-        x
-            List of numbers to factorize.
+        inputs
+            List of `N` numbers to factorize.
 
         Returns
         -------
         factors
-            The factors of the numbers.
+            Matrix `N x k` indicating the factors of each number.
         """
-        factors = torch.empty((len(x), len(self.ps)), dtype=int)
-        gen = x
-        for i, p in enumerate(self.ps):
-            factors[:, i] = gen % p
-            gen = gen // p
+        factors = torch.empty((len(inputs), len(self.divisors)), dtype=int)
+        gen = inputs
+        for i, modulo in enumerate(self.divisors):
+            factors[:, i] = gen % modulo
+            gen = gen // modulo
         return factors
 
     def recomposition(self, factors: torch.Tensor) -> torch.Tensor:
         """
-        Get the number from its factors.
+        Get a number from its factors.
 
         Parameters
         ----------
         factors
-            List of list of factors.
+            Matrix `N x k` indicating the factors of each number.
 
         Returns
         -------
-        x
-            The recomposed number.
+        outputs
+            List of `N` recomposed numbers.
         """
-        x = torch.zeros(len(factors), dtype=int)
+        outputs = torch.zeros(len(factors), dtype=int)
         multiplier = 1
-        for i, p in enumerate(self.ps):
-            x += factors[:, i] * multiplier
+        for i, p in enumerate(self.divisors):
+            outputs += factors[:, i] * multiplier
             multiplier *= p
-        return x
+        return outputs
+
+
+# -----------------------------------------------------------------------------
+# Factorized transform
+# -----------------------------------------------------------------------------
+
+
+class FactorizedProbas:
+    """
+    Generate a factorized transform.
+
+    Parameters
+    ----------
+    input_divisors
+        List of `k` divisors to factorize inputs.
+    ouput_divisors
+        List of `k` divisors to factorize outputs.
+    input_size
+        Number of inputs.
+    output_size
+        Number of outputs.
+
+    Attributes
+    ----------
+    transforms
+        List of `k` random transforms applied to each factors.
+    probas
+        Matrix `input_size x output_size` indicating the random transform.
+    """
+
+    def __init__(
+        self,
+        input_divisors: torch.Tensor,
+        output_divisors: torch.Tensor,
+        input_size: int = None,
+        output_size: int = None,
+    ):
+        if input_size is None:
+            input_size = input_divisors.prod()
+        if output_size is None:
+            output_size = output_divisors.prod()
+        inputs = torch.arange(input_size)
+        transform = self.generate_factorized_transformed(input_divisors, output_divisors, inputs)
+        self.probas = self.transform_to_probas(transform, output_size)
+
+    def generate_factorized_transformed(self, input_divisors, output_divisors, inputs):
+        """
+        Generate a factorized transform.
+        """
+        nb_factors = len(input_divisors)
+        factors = Factorizer(input_divisors)(inputs)
+
+        self.transforms = [
+            self.generate_random_transform(input_divisors[i], output_divisors[i]) for i in range(nb_factors)
+        ]
+
+        transformed_factors = torch.zeros_like(factors)
+        for i in range(nb_factors):
+            transformed_factors[:, i] = self.transforms[i][factors[:, i]]
+        transform = Factorizer(output_divisors).recomposition(transformed_factors)
+        return transform
+
+    @staticmethod
+    def generate_random_transform(input_size: int, output_size: int) -> torch.Tensor:
+        """
+        Generate a random transform.
+        """
+        transform = torch.randint(0, output_size, (input_size,))
+        # transform = torch.multinomial(probas, input_size, replacement=True)
+        return transform
+
+    @staticmethod
+    def transform_to_probas(transform: torch.Tensor, output_size: int) -> torch.Tensor:
+        """
+        Generate the matrix associated with a random transform.
+        """
+        probas = torch.zeros(len(transform), output_size)
+        probas[torch.arange(len(transform)), transform] = 1
+        return probas
 
 
 # -----------------------------------------------------------------------------
@@ -174,7 +178,6 @@ class Sampler:
     def __init__(self, input_size: int, output_size: int):
         self.input_size = input_size
         self.output_size = output_size
-        self.probas = generate_transform_matrix(input_size, output_size)
 
     def sample(self, n_samples: int = 1):
         """
@@ -243,7 +246,7 @@ class Sampler:
         return targets
 
 
-class DirichletSampler(Sampler):
+class RandomSampler(Sampler):
     """
     Sample output distributions from a Dirichlet distribution.
     """
