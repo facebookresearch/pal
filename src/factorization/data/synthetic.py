@@ -15,13 +15,60 @@ import torch
 from torch.distributions import Dirichlet
 
 # -----------------------------------------------------------------------------
-# Random transform and corresponding probability matrix
+# Random transform and corresponding transform matrix
 # -----------------------------------------------------------------------------
 
 
-def generate_transform_matrix(input_size, output_size, probas=None):
+def generate_transform(input_size: int, output_size: int, probas: torch.Tensor = None) -> torch.Tensor:
     """
-    Generate a random transform and the corresponding probability matrix.
+    Generate a random transform.
+
+    Parameters
+    ----------
+    input_size
+        The size of the input space.
+    output_size
+        The size of the output space.
+    probas
+        The probability of sampling the different outputs.
+
+    Returns
+    -------
+    transform
+        Tensor of `input_size` integers representing the random transform.
+    """
+    if probas is None:
+        transform = torch.randint(0, output_size, (input_size,))
+    else:
+        transform = torch.multinomial(probas, input_size, replacement=True)
+    return transform
+
+
+def transform_to_probas(transform: torch.Tensor, output_size: int) -> torch.Tensor:
+    """
+    Generate the matrix associated with a random transform.
+
+    Parameters
+    ----------
+    transform
+        The random transform.
+    output_size
+        The size of the output space.
+
+    Returns
+    -------
+    probas
+        Matrix associated with the random transform.
+        `probas[i, j] = 1` if the `i`-th input is transformed into the `j`-th output.
+    """
+    probas = torch.zeros(len(transform), output_size)
+    probas[torch.arange(len(transform)), transform] = 1
+    return probas
+
+
+def generate_transform_matrix(input_size: int, output_size: int, probas: torch.Tensor = None) -> torch.Tensor:
+    """
+    Generate a random deterministic transformation matrix.
 
     Parameters
     ----------
@@ -35,16 +82,72 @@ def generate_transform_matrix(input_size, output_size, probas=None):
     Returns
     -------
     probas
-        Matrix associated with the random transform.
-        `probas[i, j] = 1` if the `i`-th input is transformed into the `j`-th output.
+        Matrix of size `input_size x output_size` representing the probability of sampling the different outputs.
     """
-    if probas is None:
-        transform = torch.randint(0, output_size, (input_size,))
-    else:
-        transform = torch.multinomial(probas, input_size, replacement=True)
-    probas = torch.zeros(input_size, output_size)
-    probas[torch.arange(input_size), transform] = 1
+    transform = generate_transform(input_size, output_size, probas)
+    probas = transform_to_probas(transform, output_size)
     return probas
+
+
+# -----------------------------------------------------------------------------
+# Factors decompisition and recomposition
+# -----------------------------------------------------------------------------
+
+
+class Factorizer:
+    """
+    Factorizer class.
+
+    Attributes
+    ----------
+    ps
+        List of numbers to use for the factorization.
+    """
+
+    def __init__(self, ps: torch.Tensor):
+        self.ps = ps
+
+    def __call__(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Get the factors of a number.
+
+        Parameters
+        ----------
+        x
+            List of numbers to factorize.
+
+        Returns
+        -------
+        factors
+            The factors of the numbers.
+        """
+        factors = torch.empty((len(x), len(self.ps)), dtype=int)
+        gen = x
+        for i, p in enumerate(self.ps):
+            factors[:, i] = gen % p
+            gen = gen // p
+        return factors
+
+    def recomposition(self, factors: torch.Tensor) -> torch.Tensor:
+        """
+        Get the number from its factors.
+
+        Parameters
+        ----------
+        factors
+            List of list of factors.
+
+        Returns
+        -------
+        x
+            The recomposed number.
+        """
+        x = torch.zeros(len(factors), dtype=int)
+        multiplier = 1
+        for i, p in enumerate(self.ps):
+            x += factors[:, i] * multiplier
+            multiplier *= p
+        return x
 
 
 # -----------------------------------------------------------------------------
