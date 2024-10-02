@@ -9,9 +9,10 @@ in the root directory of this source tree.
 @ 2024, Meta
 """
 
+import json
 import logging
 import uuid
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 import numpy as np
 import torch
@@ -54,7 +55,10 @@ class ExperimentalConfig:
     learning_rate: float = 1e-3
     zipf_coef: float = 2
     train_proportion: float = 0.9
-    device: str = DEVICE
+    device: str = None
+
+    # randomness
+    seed: int = None
 
     # saving options
     save_weights: bool = False
@@ -62,6 +66,18 @@ class ExperimentalConfig:
     id: str = None
 
     def __post_init__(self):
+        if self.id is None:
+            self.id = uuid.uuid4().hex
+
+        # dictionary representation
+        self.dict_repr = asdict(self)
+
+        if self.device is None:
+            self.device = DEVICE
+
+        if self.seed is not None:
+            torch.manual_seed(seed=self.seed)
+
         self.data_config = SamplerConfig(
             input_divisors=self.input_divisors,
             output_divisors=self.output_divisors,
@@ -87,9 +103,6 @@ class ExperimentalConfig:
             nb_layers=self.nb_layers,
         )
 
-        if self.id is None:
-            self.id = uuid.uuid4().hex
-
 
 def run_from_config(config: ExperimentalConfig):
     """
@@ -101,6 +114,12 @@ def run_from_config(config: ExperimentalConfig):
         Configuration object.
     """
     logger.info(f"Running experiment with config {config}.")
+
+    # save config
+    save_dir = SAVE_DIR / config.id
+    save_dir.mkdir(exist_ok=True, parents=True)
+    with open(save_dir / "config.json", "w") as f:
+        json.dump(config.dict_repr, f)
 
     input_size = config.input_size
     nb_epochs = config.nb_epochs
@@ -158,8 +177,6 @@ def run_from_config(config: ExperimentalConfig):
     losses = losses.cpu().numpy()
 
     # Savings
-    save_dir = SAVE_DIR / config.id
-    save_dir.mkdir(exist_ok=True, parents=True)
     logger.info(f"Saving results in {save_dir}.")
     save_dir.mkdir(exist_ok=True, parents=True)
 
@@ -190,7 +207,8 @@ def run_experiments(
     learning_rate: float = 1e-3,
     zipf_coef: float = 2,
     train_proportion: float = 0.9,
-    device: str = DEVICE,
+    device: str = None,
+    seed: int = None,
     save_weights: bool = False,
     interactive: bool = True,
 ):
@@ -215,6 +233,7 @@ def run_experiments(
         zipf_coef=zipf_coef,
         train_proportion=train_proportion,
         device=device,
+        seed=seed,
         save_weights=save_weights,
         interactive=interactive,
     )

@@ -5,11 +5,8 @@
 - Refine and Iterate experiments to get insights.
 
 # Concrete stuff
-- minibatching
-- random seed
-- experimental config
-- experimental pipelint
-
+- create a json config file for the experiments.
+- script to look at the experiments.
 
 - Change the data generation code to allow for more complex bipartite graph.
     - Create a GraphFactorizedProbas.
