@@ -9,3 +9,8 @@
 - set up on a clean configuration for the data generation.
 - clean the functions Sampler class: access easily to the real conditional proba, and easily generate random samples (makes the names clearer).
 
+
+- Change the data generation code to allow for more complex bipartite graph.
+    - Create a GraphFactorizedProbas.
+    - Add a graph element (edges, connection...) to the SamplerConfig.
+    - Change the Sampler.__init__ to take into consideration the changes to the SamplerConfig.

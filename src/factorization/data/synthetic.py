@@ -9,10 +9,14 @@ in the root directory of this source tree.
 @ 2024, Meta
 """
 
+import logging
+from dataclasses import dataclass
 from typing import Union
 
 import torch
 from torch.distributions import Dirichlet
+
+logger = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------------------
 # Factors decompisition and recomposition
@@ -159,6 +163,47 @@ class FactorizedProbas:
 # -----------------------------------------------------------------------------
 
 
+@dataclass
+class SamplerConfig:
+    # factorization
+    input_divisors: list[list[int]] = None
+    output_divisors: list[list[int]] = None
+
+    # compression factor between input and output
+    alpha: float = None
+    weights: list[float] = None
+
+    # input size
+    input_size: int = None
+    output_size: int = None
+
+    # noise addition
+    epsilon: float = 0
+
+    # for random probas from Dirichlet distribution
+    random: bool = False
+    concentration: float = 1
+
+    # allows calling the class with random keyword arguments
+    def __init__(self, **kwargs):
+        self.__dict__.update((k, v) for k, v in kwargs.items() if k in self.__annotations__)
+        self.__post_init__()
+
+    def __post_init__(self):
+        if self.random:
+            logger.info("Random sampler, overriding many of SamplerConfig parameters.")
+            return
+        self.input_divisors = [torch.tensor(p) for p in self.input_divisors]
+        if self.output_divisors is None:
+            self.output_divisors = [(self.alpha * p).ceil().int() for p in self.input_divisors]
+        else:
+            self.output_divisors = [torch.tensor(q) for q in self.output_divisors]
+        if self.input_size is None:
+            self.input_size = max(p.prod() for p in self.input_divisors)
+        if self.output_size is None:
+            self.output_size = max(q.prod() for q in self.output_divisors)
+
+
 class Sampler:
     """
     Sampler class.
@@ -175,110 +220,42 @@ class Sampler:
         It corresponds to the conditional probability of the output given the input.
     """
 
-    def __init__(self, input_size: int, output_size: int):
-        self.input_size = input_size
-        self.output_size = output_size
+    def __init__(self, config: SamplerConfig):
+        self.input_size = config.input_size
+        self.output_size = config.output_size
+        if config.random:
+            concentration = config.concentration
+            self.random_init(concentration)
+        else:
+            all_probas = [
+                FactorizedProbas(p, q, self.input_size, self.output_size).probas
+                for p, q in zip(config.input_divisors, config.output_divisors)
+            ]
+            weights = config.weights
+            epsilon = config.epsilon
+            self.sparse_init(all_probas, weights, epsilon)
 
-    def sample(self, n_samples: int = 1):
+    def random_init(self, concentration: Union[float, list[float]]):
         """
-        Sample outputs.
+        Init output distributions from Dirichlet distributions.
 
         Parameters
         ----------
-        n_samples
-            The number of samples to generate.
-
-        Returns
-        -------
-        samples
-            The generated samples.
+        concentration
+            The `input_size` concentration parameter of the Dirichlet distributions.
         """
-        if hasattr(self, "probas"):
-            return torch.multinomial(self.probas, n_samples, replacement=True)
-        raise NotImplementedError
+        if isinstance(concentration, float) or isinstance(concentration, int):
+            concentration = [concentration] * self.output_size
+        if not isinstance(concentration, torch.Tensor):
+            concentration = torch.tensor(concentration).to(torch.float)
+        generator = Dirichlet(concentration)
+        self.probas = generator.sample((self.input_size,))
+        return self
 
-    def conditional_sample(self, input_id: int, n_samples: int = 1):
+    def sparse_init(self, all_probas: list[torch.Tensor], weights: list[float] = None, epsilon: float = 0):
         """
-        Sample output given an input.
+        Init output distribution by aggregating factorized sampler together.
 
-        Parameters
-        ----------
-        input_id
-            The input to condition the sampling on.
-
-        Returns
-        -------
-        samples
-            The generated samples.
-        """
-        if hasattr(self, "probas"):
-            return torch.multinomial(self.probas[input_id], n_samples, replacement=True)
-        raise NotImplementedError
-
-    def generate_targets(self, inputs: list[int]):
-        """
-        Generate targets given inputs.
-
-        Parameters
-        ----------
-        inputs
-            The input data.
-
-        Returns
-        -------
-        targets
-            The generated targets, sampled conditionally to the inputs.
-        """
-        targets = torch.empty(len(inputs), dtype=torch.long)
-
-        # generate random samples all at once
-        _, counts = torch.unique(inputs, return_counts=True)
-        n_samples = counts.max()
-        samples = self.sample(n_samples)
-
-        # retrieve the output in the order it was in
-        indices = torch.zeros(self.input_size, dtype=torch.long)
-        for i in range(len(inputs)):
-            input_id = int(inputs[i])
-            targets[i] = samples[input_id, indices[input_id]]
-            indices[input_id] += 1
-
-        return targets
-
-
-class RandomSampler(Sampler):
-    """
-    Sample output distributions from a Dirichlet distribution.
-    """
-
-    def __init__(self, input_size: int, output_size: int, alpha: Union[float, list[float]]):
-        """
-        Parameters
-        ----------
-        input_size
-            The size of the input space.
-        output_size
-            The size of the output space.
-        alpha
-            The concentration parameter of the Dirichlet distribution.
-        """
-        if isinstance(alpha, float) or isinstance(alpha, int):
-            alpha = [alpha] * output_size
-        if not isinstance(alpha, torch.Tensor):
-            alpha = torch.tensor(alpha).to(torch.float)
-        self.input_size = input_size
-        self.output_size = output_size
-        generator = Dirichlet(alpha)
-        self.probas = generator.sample((input_size,))
-
-
-class AggregatedSampler(Sampler):
-    """
-    Aggregate sampler together.
-    """
-
-    def __init__(self, all_probas: list[torch.Tensor], weights: list[float] = None, epsilon: float = 0):
-        """
         Parameters
         ----------
         all_probas
@@ -288,11 +265,8 @@ class AggregatedSampler(Sampler):
         epsilon
             The probability of choosing the uniform sampler.
         """
-        input_size, output_size = all_probas[0].shape
-        self.input_size = input_size
-        self.output_size = output_size
-        self.probas = torch.ones((input_size, output_size))
-        self.probas *= epsilon / output_size
+        self.probas = torch.ones((self.input_size, self.output_size))
+        self.probas *= epsilon / self.output_size
 
         if weights is None:
             weights = torch.zeros(len(all_probas), dtype=torch.float)
@@ -304,3 +278,67 @@ class AggregatedSampler(Sampler):
 
         for weight, probas in zip(weights, all_probas):
             self.probas += weight * probas
+
+    def sample_in_parallel(self, n_samples: int = 1) -> torch.Tensor:
+        """
+        Sample outputs from each inputs in parallel.
+
+        Parameters
+        ----------
+        n_samples
+            Number of samples to generate.
+
+        Returns
+        -------
+        samples
+            Matrix of `output_size x n_samples` generated samples.
+        """
+        return torch.multinomial(self.probas, n_samples, replacement=True)
+
+    def sample_at_once(self, input_id: int, n_samples: int = 1) -> torch.Tensor:
+        """
+        Sample output given an input.
+
+        Parameters
+        ----------
+        input_id
+            Input to condition the sampling on.
+        n_samples
+            Number of samples to generate.
+
+        Returns
+        -------
+        samples
+            List of `n_samples` generated samples.
+        """
+        return torch.multinomial(self.probas[input_id], n_samples, replacement=True)
+
+    def __call__(self, inputs: list[int]):
+        """
+        Generate targets given inputs.
+
+        Parameters
+        ----------
+        inputs
+            List of input data.
+
+        Returns
+        -------
+        outputs
+            List of generated targets, sampled conditionally to the inputs.
+        """
+        outputs = torch.empty(len(inputs), dtype=torch.long)
+
+        # generate random samples all at once
+        _, counts = torch.unique(inputs, return_counts=True)
+        n_samples = counts.max()
+        samples = self.sample_in_parallel(n_samples)
+
+        # retrieve the output in the order it was in
+        indices = torch.zeros(self.input_size, dtype=torch.long)
+        for i in range(len(inputs)):
+            input_id = int(inputs[i])
+            outputs[i] = samples[input_id, indices[input_id]]
+            indices[input_id] += 1
+
+        return outputs
