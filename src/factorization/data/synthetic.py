@@ -169,7 +169,7 @@ class SamplerConfig:
     output_divisors: list[list[int]] = None
 
     # compression factor between input and output
-    alpha: float = None
+    compression_rate: float = None
     weights: list[float] = None
 
     # input size
@@ -192,9 +192,10 @@ class SamplerConfig:
         if self.random:
             logger.info("Random sampler, overriding many of SamplerConfig parameters.")
             return
+        print(self.input_divisors)
         self.input_divisors = [torch.tensor(p) for p in self.input_divisors]
         if self.output_divisors is None:
-            self.output_divisors = [(self.alpha * p).ceil().int() for p in self.input_divisors]
+            self.output_divisors = [(self.compression_rate * p).ceil().int() for p in self.input_divisors]
         else:
             self.output_divisors = [torch.tensor(q) for q in self.output_divisors]
         if self.input_size is None:
@@ -328,7 +329,7 @@ class Sampler:
             List of generated targets, sampled conditionally to the inputs.
         """
         device = inputs.device
-        outputs = torch.empty(len(inputs), dtype=torch.long, device=device)
+        outputs = torch.empty(len(inputs), dtype=int, device=device)
 
         # generate random samples all at once
         _, counts = torch.unique(inputs, return_counts=True)
@@ -336,7 +337,7 @@ class Sampler:
         samples = self.sample_in_parallel(n_samples)
 
         # retrieve the output in the order it was in
-        indices = torch.zeros(self.input_size, dtype=torch.long, device=device)
+        indices = torch.zeros(self.input_size, dtype=int, device=device)
         for i in range(len(inputs)):
             input_id = int(inputs[i])
             outputs[i] = samples[input_id, indices[input_id]]
