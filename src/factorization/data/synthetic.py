@@ -18,6 +18,10 @@ from torch.distributions import Dirichlet
 
 logger = logging.getLogger(__name__)
 
+# Define the device globally
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 # -----------------------------------------------------------------------------
 # Factors decompisition and recomposition
 # -----------------------------------------------------------------------------
@@ -50,7 +54,7 @@ class Factorizer:
         factors
             Matrix `N x k` indicating the factors of each number.
         """
-        factors = torch.empty((len(inputs), len(self.divisors)), dtype=int)
+        factors = torch.empty((len(inputs), len(self.divisors)), dtype=torch.int, device=DEVICE)
         gen = inputs
         for i, modulo in enumerate(self.divisors):
             factors[:, i] = gen % modulo
@@ -71,7 +75,7 @@ class Factorizer:
         outputs
             List of `N` recomposed numbers.
         """
-        outputs = torch.zeros(len(factors), dtype=int)
+        outputs = torch.zeros(len(factors), dtype=torch.int, device=DEVICE)
         multiplier = 1
         for i, p in enumerate(self.divisors):
             outputs += factors[:, i] * multiplier
@@ -115,10 +119,10 @@ class FactorizedProbas:
         output_size: int = None,
     ):
         if input_size is None:
-            input_size = input_divisors.prod()
+            input_size = input_divisors.prod().item()
         if output_size is None:
-            output_size = output_divisors.prod()
-        inputs = torch.arange(input_size)
+            output_size = output_divisors.prod().item()
+        inputs = torch.arange(input_size, device=DEVICE)
         transform = self.generate_factorized_transformed(input_divisors, output_divisors, inputs)
         self.probas = self.transform_to_probas(transform, output_size)
 
@@ -128,11 +132,9 @@ class FactorizedProbas:
         """
         nb_factors = len(input_divisors)
         factors = Factorizer(input_divisors)(inputs)
-
         self.transforms = [
             self.generate_random_transform(input_divisors[i], output_divisors[i]) for i in range(nb_factors)
         ]
-
         transformed_factors = torch.zeros_like(factors)
         for i in range(nb_factors):
             transformed_factors[:, i] = self.transforms[i][factors[:, i]]
@@ -144,7 +146,7 @@ class FactorizedProbas:
         """
         Generate a random transform.
         """
-        transform = torch.randint(0, output_size, (input_size,))
+        transform = torch.randint(0, output_size, (input_size,), device=DEVICE)
         # transform = torch.multinomial(probas, input_size, replacement=True)
         return transform
 
@@ -153,8 +155,8 @@ class FactorizedProbas:
         """
         Generate the matrix associated with a random transform.
         """
-        probas = torch.zeros(len(transform), output_size)
-        probas[torch.arange(len(transform)), transform] = 1
+        probas = torch.zeros(len(transform), output_size, device=DEVICE)
+        probas[torch.arange(len(transform), device=DEVICE), transform] = 1
         return probas
 
 
@@ -193,15 +195,15 @@ class SamplerConfig:
         if self.random:
             logger.info("Random sampler, overriding many of SamplerConfig parameters.")
             return
-        self.input_divisors = [torch.tensor(p) for p in self.input_divisors]
+        self.input_divisors = [torch.tensor(p, device=DEVICE) for p in self.input_divisors]
         if self.output_divisors is None:
             self.output_divisors = [(self.alpha * p).ceil().int() for p in self.input_divisors]
         else:
-            self.output_divisors = [torch.tensor(q) for q in self.output_divisors]
+            self.output_divisors = [torch.tensor(q, device=DEVICE) for q in self.output_divisors]
         if self.input_size is None:
-            self.input_size = max(p.prod() for p in self.input_divisors)
+            self.input_size = max(p.prod().item() for p in self.input_divisors)
         if self.output_size is None:
-            self.output_size = max(q.prod() for q in self.output_divisors)
+            self.output_size = max(q.prod().item() for q in self.output_divisors)
 
 
 class Sampler:
@@ -247,10 +249,9 @@ class Sampler:
         if isinstance(concentration, float) or isinstance(concentration, int):
             concentration = [concentration] * self.output_size
         if not isinstance(concentration, torch.Tensor):
-            concentration = torch.tensor(concentration).to(torch.float)
+            concentration = torch.tensor(concentration, device=DEVICE).float()
         generator = Dirichlet(concentration)
         self.probas = generator.sample((self.input_size,))
-        return self
 
     def sparse_init(self, all_probas: list[torch.Tensor], weights: list[float] = None, epsilon: float = 0):
         """
@@ -265,17 +266,15 @@ class Sampler:
         epsilon
             The probability of choosing the uniform sampler.
         """
-        self.probas = torch.ones((self.input_size, self.output_size))
+        self.probas = torch.ones((self.input_size, self.output_size), device=DEVICE)
         self.probas *= epsilon / self.output_size
-
         if weights is None:
-            weights = torch.zeros(len(all_probas), dtype=torch.float)
-        if not isinstance(weights, torch.Tensor):
-            weights = torch.tensor(weights).to(torch.float)
+            weights = torch.zeros(len(all_probas), dtype=torch.float, device=DEVICE)
+        else:
+            weights = torch.tensor(weights, dtype=torch.float, device=DEVICE)
         weights = torch.exp(weights)
         weights /= torch.sum(weights)
         weights *= 1 - epsilon
-
         for weight, probas in zip(weights, all_probas):
             self.probas += weight * probas
 
@@ -327,18 +326,17 @@ class Sampler:
         outputs
             List of generated targets, sampled conditionally to the inputs.
         """
-        outputs = torch.empty(len(inputs), dtype=torch.long)
+        outputs = torch.empty(len(inputs), dtype=torch.long, device=DEVICE)
 
         # generate random samples all at once
-        _, counts = torch.unique(inputs, return_counts=True)
-        n_samples = counts.max()
+        _, counts = torch.unique(torch.tensor(inputs, device=DEVICE), return_counts=True)
+        n_samples = counts.max().item()
         samples = self.sample_in_parallel(n_samples)
 
         # retrieve the output in the order it was in
-        indices = torch.zeros(self.input_size, dtype=torch.long)
+        indices = torch.zeros(self.input_size, dtype=torch.long, device=DEVICE)
         for i in range(len(inputs)):
             input_id = int(inputs[i])
             outputs[i] = samples[input_id, indices[input_id]]
             indices[input_id] += 1
-
         return outputs
