@@ -54,7 +54,7 @@ class Factorizer:
         factors
             Matrix `N x k` indicating the factors of each number.
         """
-        factors = torch.empty((len(inputs), len(self.divisors)), dtype=torch.int, device=DEVICE)
+        factors = torch.empty((len(inputs), len(self.divisors)), dtype=torch.int)
         gen = inputs
         for i, modulo in enumerate(self.divisors):
             factors[:, i] = gen % modulo
@@ -75,7 +75,7 @@ class Factorizer:
         outputs
             List of `N` recomposed numbers.
         """
-        outputs = torch.zeros(len(factors), dtype=torch.int, device=DEVICE)
+        outputs = torch.zeros(len(factors), dtype=torch.int)
         multiplier = 1
         for i, p in enumerate(self.divisors):
             outputs += factors[:, i] * multiplier
@@ -122,7 +122,7 @@ class FactorizedProbas:
             input_size = input_divisors.prod().item()
         if output_size is None:
             output_size = output_divisors.prod().item()
-        inputs = torch.arange(input_size, device=DEVICE)
+        inputs = torch.arange(input_size)
         transform = self.generate_factorized_transformed(input_divisors, output_divisors, inputs)
         self.probas = self.transform_to_probas(transform, output_size)
 
@@ -146,7 +146,7 @@ class FactorizedProbas:
         """
         Generate a random transform.
         """
-        transform = torch.randint(0, output_size, (input_size,), device=DEVICE)
+        transform = torch.randint(0, output_size, (input_size,))
         # transform = torch.multinomial(probas, input_size, replacement=True)
         return transform
 
@@ -155,8 +155,8 @@ class FactorizedProbas:
         """
         Generate the matrix associated with a random transform.
         """
-        probas = torch.zeros(len(transform), output_size, device=DEVICE)
-        probas[torch.arange(len(transform), device=DEVICE), transform] = 1
+        probas = torch.zeros(len(transform), output_size)
+        probas[torch.arange(len(transform)), transform] = 1
         return probas
 
 
@@ -195,11 +195,11 @@ class SamplerConfig:
         if self.random:
             logger.info("Random sampler, overriding many of SamplerConfig parameters.")
             return
-        self.input_divisors = [torch.tensor(p, device=DEVICE) for p in self.input_divisors]
+        self.input_divisors = [torch.tensor(p) for p in self.input_divisors]
         if self.output_divisors is None:
             self.output_divisors = [(self.alpha * p).ceil().int() for p in self.input_divisors]
         else:
-            self.output_divisors = [torch.tensor(q, device=DEVICE) for q in self.output_divisors]
+            self.output_divisors = [torch.tensor(q) for q in self.output_divisors]
         if self.input_size is None:
             self.input_size = max(p.prod().item() for p in self.input_divisors)
         if self.output_size is None:
@@ -249,7 +249,7 @@ class Sampler:
         if isinstance(concentration, float) or isinstance(concentration, int):
             concentration = [concentration] * self.output_size
         if not isinstance(concentration, torch.Tensor):
-            concentration = torch.tensor(concentration, device=DEVICE).float()
+            concentration = torch.tensor(concentration).float()
         generator = Dirichlet(concentration)
         self.probas = generator.sample((self.input_size,))
 
@@ -266,12 +266,12 @@ class Sampler:
         epsilon
             The probability of choosing the uniform sampler.
         """
-        self.probas = torch.ones((self.input_size, self.output_size), device=DEVICE)
+        self.probas = torch.ones((self.input_size, self.output_size))
         self.probas *= epsilon / self.output_size
         if weights is None:
-            weights = torch.zeros(len(all_probas), dtype=torch.float, device=DEVICE)
+            weights = torch.zeros(len(all_probas), dtype=torch.float)
         else:
-            weights = torch.tensor(weights, dtype=torch.float, device=DEVICE)
+            weights = torch.tensor(weights, dtype=torch.float)
         weights = torch.exp(weights)
         weights /= torch.sum(weights)
         weights *= 1 - epsilon
@@ -290,7 +290,7 @@ class Sampler:
         Returns
         -------
         samples
-            Matrix of `output_size x n_samples` generated samples.
+            Matrix of `input_size` generated samples.
         """
         return torch.multinomial(self.probas, n_samples, replacement=True)
 
@@ -326,15 +326,16 @@ class Sampler:
         outputs
             List of generated targets, sampled conditionally to the inputs.
         """
-        outputs = torch.empty(len(inputs), dtype=torch.long, device=DEVICE)
+        device = inputs.devices
+        outputs = torch.empty(len(inputs), dtype=torch.long, device=device)
 
         # generate random samples all at once
-        _, counts = torch.unique(torch.tensor(inputs, device=DEVICE), return_counts=True)
+        _, counts = torch.unique(torch.tensor(inputs), return_counts=True)
         n_samples = counts.max().item()
-        samples = self.sample_in_parallel(n_samples)
+        samples = self.sample_in_parallel(n_samples, device=device)
 
         # retrieve the output in the order it was in
-        indices = torch.zeros(self.input_size, dtype=torch.long, device=DEVICE)
+        indices = torch.zeros(self.input_size, dtype=torch.long, device=device)
         for i in range(len(inputs)):
             input_id = int(inputs[i])
             outputs[i] = samples[input_id, indices[input_id]]
