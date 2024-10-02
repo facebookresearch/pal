@@ -18,9 +18,6 @@ from torch.distributions import Dirichlet
 
 logger = logging.getLogger(__name__)
 
-# Define the device globally
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 # -----------------------------------------------------------------------------
 # Factors decompisition and recomposition
@@ -237,6 +234,10 @@ class Sampler:
             epsilon = config.epsilon
             self.sparse_init(all_probas, weights, epsilon)
 
+    def to(self, device):
+        self.probas = self.probas.to(device)
+        return self
+
     def random_init(self, concentration: Union[float, list[float]]):
         """
         Init output distributions from Dirichlet distributions.
@@ -290,7 +291,7 @@ class Sampler:
         Returns
         -------
         samples
-            Matrix of `input_size` generated samples.
+            Matrix of `input_size x n_samples` generated samples.
         """
         return torch.multinomial(self.probas, n_samples, replacement=True)
 
@@ -326,13 +327,13 @@ class Sampler:
         outputs
             List of generated targets, sampled conditionally to the inputs.
         """
-        device = inputs.devices
+        device = inputs.device
         outputs = torch.empty(len(inputs), dtype=torch.long, device=device)
 
         # generate random samples all at once
-        _, counts = torch.unique(torch.tensor(inputs), return_counts=True)
+        _, counts = torch.unique(inputs, return_counts=True)
         n_samples = counts.max().item()
-        samples = self.sample_in_parallel(n_samples, device=device)
+        samples = self.sample_in_parallel(n_samples)
 
         # retrieve the output in the order it was in
         indices = torch.zeros(self.input_size, dtype=torch.long, device=device)
