@@ -232,17 +232,21 @@ def run_grid(
         The total number of tasks to run concurrently.
     task_id:
         The ID of the current task.
-    ablation:
-        Type of ablation study to perform.
     save_weight:
         Whether to save the weights.
     nb_seeds:
         The number of seeds to run.
     """
-    grid |= {
-        "seed": range(nb_seeds),
-        "save_weights": [save_weight],
-    }
+    logger.info(f"Running task {task_id}/{num_tasks}.")
+
+    grid = (
+        DEFAULT_GRID
+        | grid
+        | {
+            "seed": range(nb_seeds),
+            "save_weights": [save_weight],
+        }
+    )
 
     nb_configs = sum(1 for _ in product(*grid.values()))
     logger.info(f"Running {nb_configs} configurations with {num_tasks} tasks.")
