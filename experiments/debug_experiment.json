@@ -14,12 +14,14 @@
         "output_divisors": [null],
         "compression_rate": [0.5],
         "input_size": [60],
-        "output_size": [30]
+        "output_size": [60],
+        "nb_epochs": [10000]
     },
     {
         "input_divisors": [[60]],
         "random": [true],
         "input_size": [60],
-        "output_size": [30]
+        "output_size": [60],
+        "nb_epochs": [10000]
     }
 ]
