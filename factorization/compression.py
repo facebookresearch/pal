@@ -165,7 +165,7 @@ def run_from_config(config: ExperimentalConfig):
         optimizer.step()
 
         with torch.no_grad():
-            losses[epoch, 0] = all_loss.sum() - min_loss
+            losses[epoch, 0] = all_loss.mean() - min_loss
             losses[epoch, 1] = loss - min_weighted_loss
 
         if config.interactive:
@@ -189,37 +189,34 @@ def run_from_config(config: ExperimentalConfig):
 # -----------------------------------------------------------------------------
 
 
-def run_jsonl(file: str, num_tasks: int = 1, task_id: int = 1, **kwargs: dict[str, any]) -> None:
-    """
-    Run experiments from a JSONL file.
-
-    Parameters
-    ----------
-    num_tasks:
-        The total number of tasks to run concurrently.
-    task_id:
-        The ID of the current task.
-    file:
-        The path to the JSONL file.
-    kwargs:
-        Additional arguments to override the configuration.
-    """
-    with open(file, "r") as f:
-        for i, line in enumerate(f.readlines()):
-            # Handling the grid concurrently with many tasks
-            if i % num_tasks != (task_id - 1):
-                continue
-            try:
-                config_dict = json.loads(line) | kwargs
-                config = ExperimentalConfig(**config_dict)
-                run_from_config(config)
-            except Exception as e:
-                logger.warning(f"Error when loading: {line}")
-                logger.warning(traceback.format_exc())
-                logger.warning(e)
+DEFAULT_GRID = {
+    "input_divisors": [
+        [[2, 2, 3, 5]],
+        [[3, 4, 5]],
+        [[2, 5, 6]],
+        [[2, 3, 10]],
+        [[2, 2, 15]],
+        [[5, 12]],
+        [[3, 20]],
+        [[2, 30]],
+        [[60]],
+    ],
+    "output_divisors": [None],
+    "compression_rate": [0.5],
+    "input_size": [60],
+    "output_size": [30],
+    "epsilon": [1e-7],
+    "emb_dim": [32],
+    "ffn_dim": [64],
+    "nb_layers": [1],
+    "nb_epochs": [1000],
+    "learning_rate": [1e-1],
+    "zipf_coef": [2],
+}
 
 
 def run_grid(
+    grid: dict[str, list[any]] = DEFAULT_GRID,
     num_tasks: int = 1,
     task_id: int = 1,
     save_weight: bool = False,
@@ -242,29 +239,7 @@ def run_grid(
     nb_seeds:
         The number of seeds to run.
     """
-    grid = {
-        "input_divisors": [
-            [[2, 2, 3, 5]],
-            [[3, 4, 5]],
-            [[2, 5, 6]],
-            [[2, 3, 10]],
-            [[2, 2, 15]],
-            [[5, 12]],
-            [[3, 20]],
-            [[2, 30]],
-            [[60]],
-        ],
-        "output_divisors": [None],
-        "compression_rate": [0.5],
-        "input_size": [60],
-        "output_size": [30],
-        "epsilon": [1e-7],
-        "emb_dim": [32],
-        "ffn_dim": [64],
-        "nb_layers": [1],
-        "nb_epochs": [1000],
-        "learning_rate": [1e-1],
-        "zipf_coef": [2],
+    grid |= {
         "seed": range(nb_seeds),
         "save_weights": [save_weight],
     }
@@ -289,6 +264,64 @@ def run_grid(
             logger.warning(traceback.format_exc())
             logger.warning(e)
             continue
+
+
+# -----------------------------------------------------------------------------
+# JSON interface
+# -----------------------------------------------------------------------------
+
+
+def run_json(file: str, num_tasks: int = 1, task_id: int = 1, **kwargs: dict[str, any]) -> None:
+    """
+    Run experiments from a JSON file.
+
+    Parameters
+    ----------
+    num_tasks:
+        The total number of tasks to run concurrently.
+    task_id:
+        The ID of the current task.
+    file:
+        The path to the JSONL file.
+    kwargs:
+        Additional arguments to override the configuration.
+    """
+    with open(file, "r") as f:
+        all_configs = json.load(f)
+    for i, config_dict in enumerate(all_configs):
+        # Handling the grid concurrently with many tasks
+        if i % num_tasks != (task_id - 1):
+            continue
+        try:
+            config_dict |= kwargs
+            config = ExperimentalConfig(**config_dict)
+            run_from_config(config)
+        except Exception as e:
+            logger.warning(f"Error when loading: {config_dict}")
+            logger.warning(traceback.format_exc())
+            logger.warning(e)
+
+
+def run_grid_json(file: str, **kwargs: dict[str, any]) -> None:
+    """
+    Run grid experiments from a JSON file.
+
+    Parameters
+    ----------
+    num_tasks:
+        The total number of tasks to run concurrently.
+    kwargs:
+        Additional arguments to pass to `run_grid`.
+    """
+    with open(file, "r") as f:
+        all_grids = json.load(f)
+    for grid in all_grids:
+        try:
+            run_grid(grid=grid, **kwargs)
+        except Exception as e:
+            logger.warning(f"Error when loading: {grid}")
+            logger.warning(traceback.format_exc())
+            logger.warning(e)
 
 
 # -----------------------------------------------------------------------------
@@ -319,6 +352,46 @@ def run_experiments(
 ):
     """
     Run experiments with the given configurations
+
+    Parameters
+    ----------
+    input_divisors
+        List of list of input divisor to create the input factors.
+        The inner list create one factorization
+        The outer list is used to create multiple factorizations.
+    output_divisors
+        List of output divisors to create the output factors.
+    compression_rate
+        If output_divisors is None, this define the output_divisors through the formula
+        `output_divisor = compression_rate x input_divisor`.
+    weights
+        List of weights to create a mixture model from the different factorizations.
+    input_size
+        Number of input data.
+    output_size
+        Number of output data.
+    epsilon
+        Small value to avoid numerical instability.
+    random
+        If True, the mapping structure is totally random.
+    concentration
+        Concentration parameter for the Dirichlet distribution, if using a random mapping.
+    emb_dim
+        Model embedding dimension.
+    ffn_dim
+        Hidden dimension of the feedforward layers.
+    nb_layers
+        Number of feedforward layers in the model.
+    nb_epochs
+        Number of epochs to train the model.
+    learning_rate
+        Learning rate for the optimizer.
+    zipf_coef
+        Coefficient for the Zipf distribution over the inputs.
+    seed
+        Random seed for reproducibility.
+    save_weights
+        If True, save the model weights.
     """
     config = ExperimentalConfig(
         input_divisors=input_divisors,
@@ -356,7 +429,8 @@ if __name__ == "__main__":
     fire.Fire(
         {
             "run": run_experiments,
-            "json": run_jsonl,
+            "json": run_json,
             "grid": run_grid,
+            "json-grid": run_grid_json,
         }
     )

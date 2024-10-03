@@ -1,0 +1,30 @@
+[
+    {
+        "input_divisors": [[2, 2, 3, 5]],
+        "output_divisors": null,
+        "compression_rate": 0.5,
+        "input_size": 60,
+        "output_size": 30,
+        "epsilon": 1e-7,
+        "emb_dim": 32,
+        "ffn_dim": 64,
+        "nb_layers": 1,
+        "nb_epochs": 1000,
+        "learning_rate": 1e-1,
+        "zipf_coef": 2
+    },
+    {
+        "input_divisors": [[3, 4, 5]],
+        "output_divisors": null,
+        "compression_rate": 0.5,
+        "input_size": 60,
+        "output_size": 30,
+        "epsilon": 1e-7,
+        "emb_dim": 32,
+        "ffn_dim": 64,
+        "nb_layers": 1,
+        "nb_epochs": 1000,
+        "learning_rate": 1e-1,
+        "zipf_coef": 2
+    }
+]

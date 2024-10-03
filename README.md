@@ -10,6 +10,9 @@ cd pal
 pip install -e .
 ```
 
+## Usage
+Please refer to the `example` folder, and in particular the `bash_script.sh` to get a sense of how to run experiments.
+
 #### Research papers
 - Vivien Cabannes, Charles Arnal, Wassim Bouaziz, Alice Yang, Francois Charton, Julia Kempe. *Iteration Head: A Mechanistic Study of Chain-of-Thought*, 2024. The codebase is in the folder `projects/cot`.
 

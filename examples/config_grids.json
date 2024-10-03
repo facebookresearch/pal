@@ -1,0 +1,74 @@
+[
+    {
+        "input_divisors": [
+            [[2, 2, 3, 5]],
+            [[3, 4, 5]],
+            [[2, 5, 6]],
+            [[2, 3, 10]],
+            [[2, 2, 15]],
+            [[5, 12]],
+            [[3, 20]],
+            [[2, 30]],
+            [[60]]
+        ],
+        "output_divisors": [null],
+        "compression_rate": [0.5],
+        "input_size": [60],
+        "output_size": [30],
+        "epsilon": [1e-7],
+        "emb_dim": [32],
+        "ffn_dim": [64],
+        "nb_layers": [1],
+        "nb_epochs": [1000],
+        "learning_rate": [1e-1],
+        "zipf_coef": [2]
+    },
+    {
+        "input_divisors": [
+            [[2, 2, 3, 5]],
+            [[3, 4, 5]],
+            [[2, 5, 6]],
+            [[2, 3, 10]],
+            [[2, 2, 15]],
+            [[5, 12]],
+            [[3, 20]],
+            [[2, 30]],
+            [[60]]
+        ],
+        "output_divisors": [null],
+        "compression_rate": [0.5],
+        "input_size": [60],
+        "output_size": [30],
+        "epsilon": [1e-7],
+        "emb_dim": [16],
+        "ffn_dim": [32],
+        "nb_layers": [1],
+        "nb_epochs": [1000],
+        "learning_rate": [1e-1],
+        "zipf_coef": [2]
+    },
+    {
+        "input_divisors": [
+            [[2, 2, 3, 5]],
+            [[3, 4, 5]],
+            [[2, 5, 6]],
+            [[2, 3, 10]],
+            [[2, 2, 15]],
+            [[5, 12]],
+            [[3, 20]],
+            [[2, 30]],
+            [[60]]
+        ],
+        "output_divisors": [null],
+        "compression_rate": [0.5],
+        "input_size": [60],
+        "output_size": [30],
+        "epsilon": [1e-7],
+        "emb_dim": [8],
+        "ffn_dim": [16],
+        "nb_layers": [1],
+        "nb_epochs": [1000],
+        "learning_rate": [1e-1],
+        "zipf_coef": [2]
+    }
+]
