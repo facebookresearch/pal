@@ -43,7 +43,7 @@ class ExperimentalConfig:
     weights: list[float] = None
     input_size: int = None
     output_size: int = None
-    epsilon: float = 0
+    epsilon: float = 1e-7
     random: bool = False
     concentration: float = 1
 
@@ -143,6 +143,12 @@ def run_from_config(config: ExperimentalConfig):
     min_loss = all_loss.mean().item()
     all_loss *= input_probas
     min_weighted_loss = all_loss.sum().item()
+    if np.isnan(min_loss):
+        logger.warning("Minimum loss is NaN.")
+        min_loss = 0
+    if np.isnan(min_weighted_loss):
+        logger.warning("Minimum weighted loss is NaN.")
+        min_weighted_loss = 0
 
     # training loop
     model.train()
@@ -251,12 +257,12 @@ def run_grid(
         "compression_rate": [0.5],
         "input_size": [60],
         "output_size": [30],
-        "epsilon": [0],
+        "epsilon": [1e-7],
         "emb_dim": [32],
         "ffn_dim": [64],
         "nb_layers": [1],
         "nb_epochs": [1000],
-        "learning_rate": [1e-3],
+        "learning_rate": [1e-1],
         "zipf_coef": [2],
         "seed": range(nb_seeds),
         "save_weights": [save_weight],
@@ -274,8 +280,6 @@ def run_grid(
         config_dict = dict(zip(grid.keys(), values)) | kwargs
         config_dict["interactive"] = False
         config = ExperimentalConfig(**config_dict)
-
-        logger.info(f"{config=}")
 
         try:
             run_from_config(config)
