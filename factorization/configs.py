@@ -20,7 +20,7 @@ from factorization.config import CONFIG_DIR, SAVE_DIR
 logger = logging.getLogger(__name__)
 
 
-def get_paths(save_ext: str = None, suffix: str = None) -> None:
+def get_paths(save_ext: str = None) -> None:
     """
     Get used file paths.
 
@@ -28,8 +28,6 @@ def get_paths(save_ext: str = None, suffix: str = None) -> None:
     ----------
     save_ext
         Experiments folder identifier.
-    suffix
-        Configuration file suffix.
 
     Returns
     -------
@@ -38,13 +36,12 @@ def get_paths(save_ext: str = None, suffix: str = None) -> None:
     config_file
         Configuration file path.
     """
-    config_dir = CONFIG_DIR / suffix if suffix is not None else CONFIG_DIR
     if save_ext is None:
         save_dir = SAVE_DIR
-        config_file = config_dir / "base.json"
+        config_file = CONFIG_DIR / "base.json"
     else:
         save_dir = SAVE_DIR / save_ext
-        config_file = config_dir / f"{save_ext}.json"
+        config_file = CONFIG_DIR / f"{save_ext}.json"
     return save_dir, config_file
 
 
@@ -134,7 +131,7 @@ def load_experimental_result(config: dict[str, any], decorators: list[str] = Non
     return output
 
 
-def load_configs(save_ext: str = None, suffix: str = None) -> list[dict[str, any]]:
+def load_configs(save_ext: str = None) -> list[dict[str, any]]:
     """
     Load all configurations from the aggregated configuration file.
 
@@ -142,8 +139,6 @@ def load_configs(save_ext: str = None, suffix: str = None) -> list[dict[str, any
     -------
     save_ext
         Experiments folder identifier.
-    suffix
-        Configuration file suffix.
 
     Returns
     -------
@@ -151,7 +146,7 @@ def load_configs(save_ext: str = None, suffix: str = None) -> list[dict[str, any
         List of all configurations.
     """
     all_configs = []
-    _, config_file = get_paths(save_ext, suffix=suffix)
+    _, config_file = get_paths(save_ext)
     with open(config_file, "r") as f:
         all_configs = json.load(f)
     for config in all_configs:
