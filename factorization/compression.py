@@ -62,6 +62,7 @@ class ExperimentalConfig:
     seed: int = None
 
     # saving options
+    save_ext: str = "compression"
     save_weights: bool = False
     interactive: bool = True
     id: str = None
@@ -117,7 +118,7 @@ def run_from_config(config: ExperimentalConfig):
     logger.info(f"Running experiment with config {config}.")
 
     # save config
-    save_dir = SAVE_DIR / "compression" / config.id
+    save_dir = SAVE_DIR / config.save_ext / config.id
     save_dir.mkdir(exist_ok=True, parents=True)
     with open(save_dir / "config.json", "w") as f:
         json.dump(config.dict_repr, f)
