@@ -11,8 +11,10 @@ in the root directory of this source tree.
 
 import json
 import logging
+import traceback
 import uuid
 from dataclasses import asdict, dataclass
+from itertools import product
 
 import numpy as np
 import torch
@@ -176,6 +178,115 @@ def run_from_config(config: ExperimentalConfig):
 
 
 # -----------------------------------------------------------------------------
+# Grid runs
+# -----------------------------------------------------------------------------
+
+
+def run_jsonl(file: str, num_tasks: int = 1, task_id: int = 1, **kwargs: dict[str, any]) -> None:
+    """
+    Run experiments from a JSONL file.
+
+    Parameters
+    ----------
+    num_tasks:
+        The total number of tasks to run concurrently.
+    task_id:
+        The ID of the current task.
+    file:
+        The path to the JSONL file.
+    kwargs:
+        Additional arguments to override the configuration.
+    """
+    with open(file, "r") as f:
+        for i, line in enumerate(f.readlines()):
+            # Handling the grid concurrently with many tasks
+            if i % num_tasks != (task_id - 1):
+                continue
+            try:
+                config_dict = json.loads(line) | kwargs
+                config = ExperimentalConfig(**config_dict)
+                run_from_config(config)
+            except Exception as e:
+                logger.warning(f"Error when loading: {line}")
+                logger.warning(traceback.format_exc())
+                logger.warning(e)
+
+
+def run_grid(
+    num_tasks: int = 1,
+    task_id: int = 1,
+    save_weight: bool = False,
+    nb_seeds: int = 1,
+    **kwargs: dict[str, any],
+) -> None:
+    """
+    Run a grid of configurations for training.
+
+    Parameters
+    ----------
+    num_tasks:
+        The total number of tasks to run concurrently.
+    task_id:
+        The ID of the current task.
+    ablation:
+        Type of ablation study to perform.
+    save_weight:
+        Whether to save the weights.
+    nb_seeds:
+        The number of seeds to run.
+    """
+    grid = {
+        "input_divisors": [
+            [[2, 2, 3, 5]],
+            [[3, 4, 5]],
+            [[2, 5, 6]],
+            [[2, 3, 10]],
+            [[2, 2, 15]],
+            [[5, 12]],
+            [[3, 20]],
+            [[2, 30]],
+            [[60]],
+        ],
+        "output_divisors": [None],
+        "compression_rate": [0.5],
+        "input_size": [60],
+        "output_size": [30],
+        "epsilon": [0],
+        "emb_dim": [32],
+        "ffn_dim": [64],
+        "nb_layers": [1],
+        "nb_epochs": [1000],
+        "learning_rate": [1e-3],
+        "zipf_coef": [2],
+        "seed": range(nb_seeds),
+        "save_weights": [save_weight],
+    }
+
+    nb_configs = sum(1 for _ in product(*grid.values()))
+    logger.info(f"Running {nb_configs} configurations with {num_tasks} tasks.")
+
+    for i, values in enumerate(product(*grid.values())):
+        # Handling the grid concurrently with many tasks
+        if i % num_tasks != (task_id - 1):
+            continue
+
+        # setup configuration
+        config_dict = dict(zip(grid.keys(), values)) | kwargs
+        config_dict["interactive"] = False
+        config = ExperimentalConfig(**config_dict)
+
+        logger.info(f"{config=}")
+
+        try:
+            run_from_config(config)
+        except Exception as e:
+            logger.warning(f"Error for configuration: {config}.")
+            logger.warning(traceback.format_exc())
+            logger.warning(e)
+            continue
+
+
+# -----------------------------------------------------------------------------
 # Cli interface
 # -----------------------------------------------------------------------------
 
@@ -237,4 +348,10 @@ if __name__ == "__main__":
         handlers=[logging.StreamHandler()],
     )
 
-    fire.Fire(run_experiments)
+    fire.Fire(
+        {
+            "run": run_experiments,
+            "json": run_jsonl,
+            "grid": run_grid,
+        }
+    )
