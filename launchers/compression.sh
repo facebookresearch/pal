@@ -18,4 +18,4 @@
 #SBATCH --array=1-500
 
 CODE_PATH="/private/home/vivc/code/memory-theory"
-python ${CODE_PATH}/factorization/compression.py json-grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID --file ${CODE_PATH}/experiments/debug_experiment.json --nb-seeds 100
+python ${CODE_PATH}/factorization/compression.py json-grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID --file ${CODE_PATH}/experiments/debug_experiment.json --nb-seeds 100 --save-ext debug_experiment

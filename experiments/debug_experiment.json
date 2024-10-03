@@ -17,6 +17,7 @@
         "output_size": [30]
     },
     {
+        "input_divisors": [[60]],
         "random": [true],
         "input_size": [60],
         "output_size": [30]

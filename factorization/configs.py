@@ -121,8 +121,8 @@ def load_experimental_result(config: dict[str, any], decorators: list[str] = Non
     else:
         columns = ["loss", "weighted_acc", "train_loss"]
     if final:
-        losses = losses[-1:]
         epochs = [len(losses)]
+        losses = losses[-1:]
     else:
         epochs = range(1, len(losses) + 1)
     output = pd.DataFrame(losses, columns=columns).assign(
@@ -183,6 +183,7 @@ def load_experimental_results(
             "input_divisors",
             "output_divisors",
             "compression_rate",
+            "random",
             "emb_dim",
             "ffn_dim",
             "nb_layers",
