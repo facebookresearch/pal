@@ -84,9 +84,7 @@ def aggregate_configs(save_ext: str = None) -> None:
 # Load experimental results
 
 
-def load_experimental_result(
-    config: dict[str, any], decorators: list[str] = None, final: bool = False
-) -> pd.DataFrame:
+def load_experimental_result(config: dict[str, any], decorators: list[str] = None, final: bool = False) -> pd.DataFrame:
     """
     Load experimemt result as a DataFrame.
 
