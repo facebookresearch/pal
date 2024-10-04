@@ -11,7 +11,7 @@ in the root directory of this source tree.
 
 import logging
 from dataclasses import dataclass
-from typing import Union
+from typing import Union, Optional
 
 import torch
 from torch.distributions import Dirichlet
@@ -112,8 +112,8 @@ class FactorizedProbas:
         self,
         input_divisors: torch.Tensor,
         output_divisors: torch.Tensor,
-        input_size: int = None,
-        output_size: int = None,
+        input_size: Optional[int] = None,
+        output_size: Optional[int] = None,
     ):
         if input_size is None:
             input_size = input_divisors.prod().item()
