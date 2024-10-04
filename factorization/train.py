@@ -22,6 +22,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.distributions import Categorical
+from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
 from factorization.config import DEVICE, SAVE_DIR
@@ -38,13 +39,14 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class CompressionConfig:
+class ExperimentalConfig:
     # data config
     log_input_factors: list[int]
     output_factors: list[int] = None
     data_emb_dim: int = None
     alphas: Union[list[float], float] = 1e-3
     compression_rate: float = 0.5
+    data_split: float = 0.8
 
     # model config
     emb_dim: int = 32
@@ -54,17 +56,25 @@ class CompressionConfig:
     # optimization config
     nb_epochs: int = 1000
     learning_rate: float = 1e-3
+    batch_size: int = None
+
+    # experimental mode
+    mode: str = "generalization"
 
     # randomness
     seed: int = None
 
     # saving options
-    save_ext: str = "compression"
+    save_ext: str = None
     save_weights: bool = False
     interactive: bool = True
     id: str = None
 
     def __post_init__(self):
+        self.mode = self.mode.lower()
+        if self.mode.lower() not in ["compression", "generalization"]:
+            raise ValueError(f"Invalid mode: {self.mode}.")
+
         # default data value
         if self.output_factors is None:
             self.output_factors = [math.ceil(self.compression_rate * 2**factor) for factor in self.log_input_factors]
@@ -92,9 +102,11 @@ class CompressionConfig:
             nb_layers=self.nb_layers,
         )
 
-        # unique identifier
+        # saving identifier
         if self.id is None:
             self.id = uuid.uuid4().hex
+        if self.save_ext is None:
+            self.save_ext = self.mode
 
         # dictionary representation
         self.dict_repr = asdict(self)
@@ -106,9 +118,129 @@ class CompressionConfig:
             torch.manual_seed(seed=self.seed)
 
 
-def run_from_config(config: CompressionConfig):
+def run_from_config(config: ExperimentalConfig):
     """
     Run the experiment from a configuration object.
+
+    Parameters
+    ----------
+    config
+        Configuration object.
+    """
+    if config.mode == "generalization":
+        generalization_run_from_config(config)
+    elif config.mode == "compression":
+        compression_run_from_config(config)
+    else:
+        raise ValueError(f"Invalid mode: {config.mode}.")
+
+
+def generalization_run_from_config(config: ExperimentalConfig):
+    """
+    Run the experiment in generalization mode from a configuration object.
+
+    Parameters
+    ----------
+    config
+        Configuration object.
+    """
+    logger.info(f"Running experiment with config {config}.")
+
+    # save config
+    save_dir = SAVE_DIR / config.save_ext / config.id
+    save_dir.mkdir(exist_ok=True, parents=True)
+    with open(save_dir / "config.json", "w") as f:
+        json.dump(config.dict_repr, f)
+
+    dataset = FactorizedDataset(config.data_config).to(config.device)
+    model = Model(config.model_config).to(config.device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+
+    inputs = dataset.data
+    targets = dataset.probas
+    random_indices = torch.randperm(len(inputs), device=DEVICE)
+    n_train = int(config.input_size * config.data_split)
+    train_indices = random_indices[:n_train]
+    test_indices = random_indices[n_train:]
+
+    # placeholders
+    nb_epochs = config.nb_epochs
+    losses = torch.empty([nb_epochs, 2], device=DEVICE)
+
+    # compute minimum loss
+    min_loss = Categorical(probs=targets[train_indices]).entropy().mean().item()
+    if np.isnan(min_loss):
+        logger.warning("Minimum loss is NaN.")
+    else:
+        losses[:, 0] -= min_loss
+    min_loss = Categorical(probs=targets[test_indices]).entropy().mean().item()
+    if np.isnan(min_loss):
+        logger.warning("Minimum loss is NaN.")
+    else:
+        losses[:, 1] -= min_loss
+
+    # define dataloader
+    if config.batch_size is None:
+        config.batch_size = config.input_size
+    train_batch_size = min(len(train_indices), config.batch_size)
+    test_batch_size = min(len(test_indices), config.batch_size)
+    trainloader = DataLoader(
+        TensorDataset(inputs[train_indices], targets[train_indices]),
+        batch_size=train_batch_size,
+        shuffle=True,
+    )
+    testloader = DataLoader(
+        TensorDataset(inputs[test_indices], targets[test_indices]),
+        batch_size=test_batch_size,
+        shuffle=False,
+    )
+
+    # training loop
+    model.train()
+    for epoch in (bar := tqdm(range(nb_epochs), disable=not config.interactive)):
+        running_loss = 0.0
+        for inputs, targets in trainloader:
+            inputs, targets = inputs.to(config.device), targets.to(config.device)
+            logits = model(inputs)
+            loss = F.cross_entropy(logits, targets)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            with torch.no_grad():
+                running_loss += loss.item()
+
+        with torch.no_grad():
+            running_loss /= len(trainloader)
+            losses[epoch, 0] += running_loss
+
+            running_loss = 0
+            for inputs, targets in testloader:
+                inputs, targets = inputs.to(config.device), targets.to(config.device)
+                logits = model(inputs)
+                loss = F.cross_entropy(logits, targets)
+                running_loss += loss.item()
+            running_loss /= len(testloader)
+            losses[epoch, 1] += loss
+        if config.interactive:
+            bar.set_postfix(train_loss=losses[epoch, 0].item(), test_loss=losses[epoch, 1].item())
+        else:
+            logger.info(
+                f"Epoch {epoch}/{config.nb_epochs}: losses={losses[epoch, 0].item()}, {losses[epoch, 1].item()}."
+            )
+
+    # Savings
+    logger.info(f"Saving results in {save_dir}.")
+    save_dir.mkdir(exist_ok=True, parents=True)
+    np.save(save_dir / "losses.npy", losses.cpu().numpy())
+    if config.save_weights:
+        torch.save(model.state_dict(), save_dir / "model.pth")
+
+
+def compression_run_from_config(config: ExperimentalConfig):
+    """
+    Run the experiment in compression mode from a configuration object.
 
     Parameters
     ----------
@@ -216,7 +348,7 @@ def run_grid(
         # setup configuration
         config_dict = dict(zip(grid.keys(), values)) | kwargs
         config_dict["interactive"] = False
-        config = CompressionConfig(**config_dict)
+        config = ExperimentalConfig(**config_dict)
 
         try:
             run_from_config(config)
@@ -255,7 +387,7 @@ def run_json(file: str, num_tasks: int = 1, task_id: int = 1, **kwargs: dict[str
             continue
         try:
             config_dict |= kwargs
-            config = CompressionConfig(**config_dict)
+            config = ExperimentalConfig(**config_dict)
             run_from_config(config)
         except Exception as e:
             logger.warning(f"Error when loading: {config_dict}")
@@ -296,13 +428,16 @@ def run_experiments(
     data_emb_dim: int = 32,
     alphas: Union[list[float], float] = 1e-3,
     compression_rate: float = 0.5,
+    data_split: float = 0.8,
     emb_dim: int = 32,
     ffn_dim: int = 64,
     nb_layers: int = 1,
     nb_epochs: int = 1000,
     learning_rate: float = 1e-3,
+    batch_size: int = None,
+    mode: str = "generalization",
     seed: int = None,
-    save_ext: str = "compression",
+    save_ext: str = None,
     save_weights: bool = False,
 ):
     """
@@ -320,6 +455,8 @@ def run_experiments(
         Concentration coefficient for the conditional distribution.
     compression_rate
         Compression rate between input and output factors.
+    data_split
+        Proportion of the data used for training.
     emb_dim
         Model embedding dimension.
     ffn_dim
@@ -330,6 +467,10 @@ def run_experiments(
         Number of epochs to train the model.
     learning_rate
         Learning rate for the optimizer.
+    batch_size
+        Batch size for training and testing.
+    mode
+        Experimental mode: generalization or compression.
     seed
         Random seed for reproducibility.
     save_ext
@@ -337,17 +478,20 @@ def run_experiments(
     save_weights
         If True, save the model weights.
     """
-    config = CompressionConfig(
+    config = ExperimentalConfig(
         log_input_factors=log_input_factors,
+        mode=mode,
         output_factors=output_factors,
         data_emb_dim=data_emb_dim,
         alphas=alphas,
         compression_rate=compression_rate,
+        data_split=data_split,
         emb_dim=emb_dim,
         ffn_dim=ffn_dim,
         nb_layers=nb_layers,
         nb_epochs=nb_epochs,
         learning_rate=learning_rate,
+        batch_size=batch_size,
         seed=seed,
         save_ext=save_ext,
         save_weights=save_weights,
