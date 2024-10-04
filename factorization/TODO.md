@@ -3,7 +3,7 @@
 - script to look at the experiments.
      - look at the analysis script, make it a notebook, then put it (partially) back into a script.
 
-- launch compression experiments study:
+- launch compression experiments study first:
      - look manually at some good spot in terms of data and model size.
 
 - launch generalization study:
