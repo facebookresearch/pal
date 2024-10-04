@@ -163,15 +163,7 @@ def run_from_config(config: CompressionConfig):
 
 
 DEFAULT_GRID = {
-    "log_input_factors": [[2, 2, 2, 2], [1, 2, 1, 4]],
-    "alphas": [1e-3, 1e-2, 1e-1, 1],
-    "compression_rate": [0.5],
-    "data_emb_dim": [32],
-    "emb_dim": [32],
-    "ffn_dim": [64],
-    "nb_layers": [1],
-    "nb_epochs": [1000],
-    "learning_rate": [1e-1],
+    "log_input_factors": [[8]],
 }
 
 
@@ -199,14 +191,10 @@ def run_grid(
     """
     logger.info(f"Running task {task_id}/{num_tasks}.")
 
-    grid = (
-        DEFAULT_GRID
-        | grid
-        | {
-            "seed": range(nb_seeds),
-            "save_weights": [save_weight],
-        }
-    )
+    grid |= {
+        "seed": range(nb_seeds),
+        "save_weights": [save_weight],
+    }
 
     nb_configs = sum(1 for _ in product(*grid.values()))
     logger.info(f"Running {nb_configs} configurations with {num_tasks} tasks.")
