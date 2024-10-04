@@ -119,15 +119,21 @@ def load_experimental_result(config: dict[str, any], decorators: list[str] = Non
     losses = np.load(save_dir / "losses.npy")
     if len(losses.shape) == 2:
         columns = ["loss", "test_loss"]
+        train_entropy = losses[-1, 0]
+        test_entropy = losses[-1, 1]
     else:
         columns = ["loss"]
+        train_entropy = losses[-1]
+        test_entropy = 0
     if final:
-        epochs = [len(losses)]
-        losses = losses[-1:]
+        epochs = [len(losses) - 1]
+        losses = losses[-2:-1]
     else:
-        epochs = range(1, len(losses) + 1)
+        epochs = range(1, len(losses))
+        losses = losses[:-1]
     output = pd.DataFrame(losses, columns=columns).assign(
-        **{key: config[key] for key in decorators} | {"epoch": epochs}
+        **{key: config[key] for key in decorators}
+        | {"epoch": epochs, "train_entropy": train_entropy, "test_entropy": test_entropy}
     )
     return output
 
@@ -194,10 +200,10 @@ def load_experimental_results(
             "mode",
             "seed",
             "id",
-            # "input_size",
-            # "output_size",
-            # "data_complexity",
-            # "nb_factors",
+            "input_size",
+            "output_size",
+            "data_complexity",
+            "nb_factors",
         ]
 
     all_data = []

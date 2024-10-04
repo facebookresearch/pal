@@ -183,12 +183,14 @@ def generalization_run_from_config(config: ExperimentalConfig):
     min_loss = Categorical(probs=targets[train_indices]).entropy().mean().item()
     if np.isnan(min_loss):
         logger.warning("Minimum loss is NaN.")
+        losses[-1, 0] -= min_loss
     else:
         logger.warning(f"Minimum train loss is {min_loss}.")
         losses[:, 0] -= min_loss
     min_loss = Categorical(probs=targets[test_indices]).entropy().mean().item()
     if np.isnan(min_loss):
         logger.warning("Minimum loss is NaN.")
+        losses[-1, 1] -= min_loss
     else:
         logger.warning(f"Minimum test loss is {min_loss}.")
         losses[:, 1] -= min_loss
