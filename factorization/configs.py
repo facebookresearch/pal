@@ -157,10 +157,7 @@ def load_configs(save_ext: str = None) -> list[dict[str, any]]:
 
 
 def load_experimental_results(
-    all_configs: list[dict[str, any]],
-    decorators: Optional[list[str]] = None,
-    final: bool = False,
-    **kwargs: dict[str, any],
+    all_configs: list[dict[str, any]], decorators: list[str] = None, final: bool = False, **kwargs: dict[str, any]
 ) -> pd.DataFrame:
     """
     Load all experimental results related to the aggregated configuration file.
