@@ -177,7 +177,7 @@ def generalization_run_from_config(config: ExperimentalConfig):
 
     # placeholders
     nb_epochs = config.nb_epochs
-    losses = torch.empty([nb_epochs, 2], device=DEVICE)
+    losses = torch.zeros([nb_epochs + 1, 2], device=DEVICE)
 
     # compute minimum loss
     min_loss = Categorical(probs=targets[train_indices]).entropy().mean().item()
@@ -277,7 +277,7 @@ def compression_run_from_config(config: ExperimentalConfig):
 
     # placeholders
     nb_epochs = config.nb_epochs
-    losses = torch.empty(nb_epochs, device=DEVICE)
+    losses = torch.zeros(nb_epochs + 1, device=DEVICE)
 
     # compute minimum loss
     min_loss = Categorical(probs=targets).entropy().mean().item()
