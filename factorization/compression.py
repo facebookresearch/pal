@@ -42,7 +42,7 @@ class CompressionConfig:
     # data config
     log_input_factors: list[int]
     output_factors: list[int] = None
-    data_emb_dim: int = 32
+    data_emb_dim: int = None
     alphas: Union[list[float], float] = 1e-3
     compression_rate: float = 0.5
 
@@ -65,8 +65,12 @@ class CompressionConfig:
     id: str = None
 
     def __post_init__(self):
+        # default data value
         if self.output_factors is None:
             self.output_factors = [math.ceil(self.compression_rate * 2**factor) for factor in self.log_input_factors]
+        if self.data_emb_dim is None:
+            self.data_emb_dim = self.emb_dim
+
         data_config = DataConfig(
             log_input_factors=self.log_input_factors,
             output_factors=self.output_factors,

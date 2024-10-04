@@ -1,74 +1,56 @@
 [
     {
-        "input_divisors": [
-            [[2, 2, 3, 5]],
-            [[3, 4, 5]],
-            [[2, 5, 6]],
-            [[2, 3, 10]],
-            [[2, 2, 15]],
-            [[5, 12]],
-            [[3, 20]],
-            [[2, 30]],
-            [[60]]
+        "log_input_factors": [
+            [1, 1, 1, 1, 1, 1, 1, 1],
+            [2, 2, 2, 2],
+            [3, 3, 2],
+            [4, 4],
+            [8]
         ],
-        "output_divisors": [null],
+        "output_factors": [null],
+        "data_emb_dim": [32],
+        "alphas": [1e-3],
         "compression_rate": [0.5],
-        "input_size": [60],
-        "output_size": [30],
-        "epsilon": [1e-7],
-        "emb_dim": [32],
-        "ffn_dim": [64],
-        "nb_layers": [1],
-        "nb_epochs": [1000],
-        "learning_rate": [1e-1],
-        "zipf_coef": [2]
-    },
-    {
-        "input_divisors": [
-            [[2, 2, 3, 5]],
-            [[3, 4, 5]],
-            [[2, 5, 6]],
-            [[2, 3, 10]],
-            [[2, 2, 15]],
-            [[5, 12]],
-            [[3, 20]],
-            [[2, 30]],
-            [[60]]
-        ],
-        "output_divisors": [null],
-        "compression_rate": [0.5],
-        "input_size": [60],
-        "output_size": [30],
-        "epsilon": [1e-7],
         "emb_dim": [16],
         "ffn_dim": [32],
         "nb_layers": [1],
         "nb_epochs": [1000],
-        "learning_rate": [1e-1],
-        "zipf_coef": [2]
+        "learning_rate": [1e-1]
     },
     {
-        "input_divisors": [
-            [[2, 2, 3, 5]],
-            [[3, 4, 5]],
-            [[2, 5, 6]],
-            [[2, 3, 10]],
-            [[2, 2, 15]],
-            [[5, 12]],
-            [[3, 20]],
-            [[2, 30]],
-            [[60]]
+        "log_input_factors": [
+            [1, 1, 1, 1, 1, 1, 1, 1],
+            [2, 2, 2, 2],
+            [3, 3, 2],
+            [4, 4],
+            [8]
         ],
-        "output_divisors": [null],
+        "output_factors": [null],
+        "data_emb_dim": [32],
+        "alphas": [1e-3],
         "compression_rate": [0.5],
-        "input_size": [60],
-        "output_size": [30],
-        "epsilon": [1e-7],
-        "emb_dim": [8],
-        "ffn_dim": [16],
+        "emb_dim": [16],
+        "ffn_dim": [32],
         "nb_layers": [1],
         "nb_epochs": [1000],
-        "learning_rate": [1e-1],
-        "zipf_coef": [2]
+        "learning_rate": [1e-1]
+    },
+    {
+        "log_input_factors": [
+            [1, 1, 1, 1, 1, 1, 1, 1],
+            [2, 2, 2, 2],
+            [3, 3, 2],
+            [4, 4],
+            [8]
+        ],
+        "output_factors": [null],
+        "data_emb_dim": [32],
+        "alphas": [1e-3],
+        "compression_rate": [0.5],
+        "emb_dim": [8],
+        "ffn_dim": [13],
+        "nb_layers": [1],
+        "nb_epochs": [1000],
+        "learning_rate": [1e-1]
     }
 ]

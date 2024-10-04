@@ -2,7 +2,7 @@
     {
         "log_input_factors": [8],
         "output_factors": null,
-        "data_emb_dim": 32,
+        "data_emb_dim": null,
         "alphas": 1e-3,
         "compression_rate": 0.5,
         "emb_dim": 32,
@@ -14,7 +14,7 @@
     {
         "log_input_factors": [8],
         "output_factors": null,
-        "data_emb_dim": 32,
+        "data_emb_dim": null,
         "alphas": 1e-1,
         "compression_rate": 0.5,
         "emb_dim": 32,
