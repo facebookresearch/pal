@@ -30,7 +30,7 @@ class DataConfig:
     emb_dim: int
 
     # concentration coefficient for p(y_i|x_i)
-    alphas: Union[list[float], float]
+    alphas: Union[list[float], float] = 1e-3
 
     def __init__(self, **kwargs):
         self.__dict__.update((k, v) for k, v in kwargs.items() if k in self.__annotations__)
@@ -40,8 +40,8 @@ class DataConfig:
         if len(self.input_factors) != len(self.output_factors):
             raise ValueError("input_factors and output_factors must have the same length")
 
-        if isinstance(self.alpha, float):
-            self.alpha = [self.alpha] * len(self.output_factors)
+        if isinstance(self.alphas, float):
+            self.alphas = [self.alphas] * len(self.output_factors)
 
         self.nb_data = 2 ** sum(self.input_factors)
 
