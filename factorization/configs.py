@@ -16,11 +16,12 @@ import numpy as np
 import pandas as pd
 
 from factorization.config import CONFIG_DIR, SAVE_DIR
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
-def get_paths(save_ext: str = None) -> None:
+def get_paths(save_ext: Optional[str] = None) -> None:
     """
     Get used file paths.
 
@@ -83,7 +84,9 @@ def aggregate_configs(save_ext: str = None) -> None:
 # Load experimental results
 
 
-def load_experimental_result(config: dict[str, any], decorators: list[str] = None, final: bool = False) -> pd.DataFrame:
+def load_experimental_result(
+    config: dict[str, any], decorators: list[str] = None, final: bool = False
+) -> pd.DataFrame:
     """
     Load experimemt result as a DataFrame.
 
@@ -155,7 +158,10 @@ def load_configs(save_ext: str = None) -> list[dict[str, any]]:
 
 
 def load_experimental_results(
-    all_configs: list[dict[str, any]], decorators: list[str] = None, final: bool = False, **kwargs: dict[str, any]
+    all_configs: list[dict[str, any]],
+    decorators: Optional[list[str]] = None,
+    final: bool = False,
+    **kwargs: dict[str, any],
 ) -> pd.DataFrame:
     """
     Load all experimental results related to the aggregated configuration file.
