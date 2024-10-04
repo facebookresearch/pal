@@ -1,5 +1,10 @@
 #!/usr/bin/bash
 
+# This file is useful to launch many experiment in parallel with slurm
+# ```shell
+# $ sbatch <path_to_file_folder>/compression.sh
+# ```
+
 # Logging configuration
 #SBATCH --job-name=compression
 #SBATCH --output=logs/%A/%a.out
@@ -16,4 +21,4 @@
 #SBATCH --array=1-500
 
 CODE_PATH="./"
-python ${CODE_PATH}factorization/compression.py json-grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID --file ${CODE_PATH}experiments/debug_experiment.json --nb-seeds 100 --save-ext debug_experiment
+python ${CODE_PATH}factorization/train.py json-grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID --file ${CODE_PATH}experiments/debug_experiment.json --nb-seeds 100 --save-ext debug_experiment
