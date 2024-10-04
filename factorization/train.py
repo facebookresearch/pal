@@ -94,6 +94,9 @@ class ExperimentalConfig:
         self.data_complexity = sum([2**p * q for (p, q) in zip(self.log_input_factors, self.output_factors)])
         self.nb_factors = len(self.log_input_factors)
 
+        if self.mode == "generalization" and self.data_emb_dim != self.emb_dim:
+            raise ValueError("Data and model embedding dimensions must be equal in generalization studies.")
+
         model_config = ModelConfig(
             input_size=self.input_size,
             output_size=self.output_size,
@@ -109,7 +112,12 @@ class ExperimentalConfig:
             self.save_ext = self.mode
 
         # dictionary representation
-        self.dict_repr = asdict(self)
+        self.dict_repr = asdict(self) | {
+            "input_size": self.input_size,
+            "output_size": self.output_size,
+            "data_complexity": self.data_complexity,
+            "nb_factors": self.nb_factors,
+        }
 
         self.data_config = data_config
         self.model_config = model_config

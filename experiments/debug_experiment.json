@@ -3,8 +3,8 @@
         "log_input_factors": [
             [1, 7]
         ],
-        "output_factors": [32],
-        "data_emb_dim": [32],
+        "output_factors": [[4, 8]],
+        "data_emb_dim": [null],
         "alphas": [[1e-3, 1e3], [1e3, 1e-3]],
         "compression_rate": [null],
         "emb_dim": [16],

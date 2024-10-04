@@ -102,8 +102,9 @@ def load_experimental_result(config: dict[str, any], decorators: list[str] = Non
         DataFrame with the experimental results
     """
     string_decorators = [
-        "input_divisors",
-        "output_divisors",
+        "log_input_factors",
+        "output_factors",
+        "alphas",
     ]
     save_dir, _ = get_paths(config["save_ext"])
     save_dir = save_dir / config["id"]
@@ -116,10 +117,10 @@ def load_experimental_result(config: dict[str, any], decorators: list[str] = Non
             config[key] = str(config[key])
 
     losses = np.load(save_dir / "losses.npy")
-    if losses.shape[1] == 2:
-        columns = ["loss", "weighted_loss"]
+    if len(losses.shape) == 2:
+        columns = ["loss", "test_loss"]
     else:
-        columns = ["loss", "weighted_acc", "train_loss"]
+        columns = ["loss"]
     if final:
         epochs = [len(losses)]
         losses = losses[-1:]
@@ -180,16 +181,23 @@ def load_experimental_results(
     """
     if decorators is None:
         decorators = [
-            "input_divisors",
-            "output_divisors",
-            "compression_rate",
-            "random",
+            "log_input_factors",
+            "output_factors",
+            "data_emb_dim",
+            "alphas",
+            "data_split",
             "emb_dim",
             "ffn_dim",
             "nb_layers",
             "learning_rate",
+            "batch_size",
+            "mode",
             "seed",
             "id",
+            # "input_size",
+            # "output_size",
+            # "data_complexity",
+            # "nb_factors",
         ]
 
     all_data = []
