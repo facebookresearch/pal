@@ -176,11 +176,13 @@ def generalization_run_from_config(config: ExperimentalConfig):
     if np.isnan(min_loss):
         logger.warning("Minimum loss is NaN.")
     else:
+        logger.warning(f"Minimum train loss is {min_loss}.")
         losses[:, 0] -= min_loss
     min_loss = Categorical(probs=targets[test_indices]).entropy().mean().item()
     if np.isnan(min_loss):
         logger.warning("Minimum loss is NaN.")
     else:
+        logger.warning(f"Minimum test loss is {min_loss}.")
         losses[:, 1] -= min_loss
 
     # define dataloader
@@ -204,7 +206,6 @@ def generalization_run_from_config(config: ExperimentalConfig):
     for epoch in (bar := tqdm(range(nb_epochs), disable=not config.interactive)):
         running_loss = 0.0
         for inputs, targets in trainloader:
-            inputs, targets = inputs.to(config.device), targets.to(config.device)
             logits = model(inputs)
             loss = F.cross_entropy(logits, targets)
 
@@ -221,7 +222,7 @@ def generalization_run_from_config(config: ExperimentalConfig):
 
             running_loss = 0
             for inputs, targets in testloader:
-                inputs, targets = inputs.to(config.device), targets.to(config.device)
+                inputs, targets = inputs, targets
                 logits = model(inputs)
                 loss = F.cross_entropy(logits, targets)
                 running_loss += loss.item()
