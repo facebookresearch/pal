@@ -437,7 +437,7 @@ def run_experiments(
     batch_size: int = None,
     mode: str = "generalization",
     seed: int = None,
-    save_ext: str = None,
+    save_ext: str = "interactive",
     save_weights: bool = False,
 ):
     """
