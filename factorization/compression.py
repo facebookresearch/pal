@@ -11,18 +11,21 @@ in the root directory of this source tree.
 
 import json
 import logging
+import math
 import traceback
 import uuid
 from dataclasses import asdict, dataclass
 from itertools import product
+from typing import Union
 
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torch.distributions import Categorical
 from tqdm import tqdm
 
 from factorization.config import DEVICE, SAVE_DIR
-from factorization.data.synthetic import Sampler, SamplerConfig
+from factorization.data.factorized import DataConfig, FactorizedDataset
 from factorization.models.mlp import Model, ModelConfig
 
 torch.random.manual_seed(0)
@@ -35,17 +38,13 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ExperimentalConfig:
+class CompressionConfig:
     # data config
-    input_divisors: list[list[int]] = None
-    output_divisors: list[list[int]] = None
-    compression_rate: float = None
-    weights: list[float] = None
-    input_size: int = None
-    output_size: int = None
-    epsilon: float = 1e-7
-    random: bool = False
-    concentration: float = 1
+    log_input_factors: list[int]
+    output_factors: list[int] = None
+    data_emb_dim: int = 32
+    alphas: Union[list[float], float] = 1e-3
+    compression_rate: float = 0.5
 
     # model config
     emb_dim: int = 32
@@ -55,8 +54,6 @@ class ExperimentalConfig:
     # optimization config
     nb_epochs: int = 1000
     learning_rate: float = 1e-3
-    zipf_coef: float = 2
-    device: str = None
 
     # randomness
     seed: int = None
@@ -68,36 +65,17 @@ class ExperimentalConfig:
     id: str = None
 
     def __post_init__(self):
-        if self.id is None:
-            self.id = uuid.uuid4().hex
-
-        # dictionary representation
-        self.dict_repr = asdict(self)
-
-        if self.device is None:
-            self.device = DEVICE
-
-        if self.seed is not None:
-            torch.manual_seed(seed=self.seed)
-
-        self.data_config = SamplerConfig(
-            input_divisors=self.input_divisors,
-            output_divisors=self.output_divisors,
-            compression_rate=self.compression_rate,
-            weights=self.weights,
-            input_size=self.input_size,
-            output_size=self.output_size,
-            epsilon=self.epsilon,
-            random=self.random,
-            concentration=self.concentration,
+        if self.output_factors is None:
+            self.output_factors = [math.ceil(self.compression_rate * 2**factor) for factor in self.log_input_factors]
+        data_config = DataConfig(
+            log_input_factors=self.log_input_factors,
+            output_factors=self.output_factors,
+            emb_dim=self.data_emb_dim,
+            alphas=self.alphas,
         )
-
-        if self.input_size is None:
-            self.input_size = self.data_config.input_size
-        if self.output_size is None:
-            self.output_size = self.data_config.output_size
-
-        self.model_config = ModelConfig(
+        self.input_size = data_config.nb_data
+        self.output_size = data_config.nb_classes
+        model_config = ModelConfig(
             input_size=self.input_size,
             output_size=self.output_size,
             emb_dim=self.emb_dim,
@@ -105,8 +83,21 @@ class ExperimentalConfig:
             nb_layers=self.nb_layers,
         )
 
+        # unique identifier
+        if self.id is None:
+            self.id = uuid.uuid4().hex
 
-def run_from_config(config: ExperimentalConfig):
+        # dictionary representation
+        self.dict_repr = asdict(self)
+
+        self.data_config = data_config
+        self.model_config = model_config
+        self.device = DEVICE
+        if self.seed is not None:
+            torch.manual_seed(seed=self.seed)
+
+
+def run_from_config(config: CompressionConfig):
     """
     Run the experiment from a configuration object.
 
@@ -123,58 +114,40 @@ def run_from_config(config: ExperimentalConfig):
     with open(save_dir / "config.json", "w") as f:
         json.dump(config.dict_repr, f)
 
-    input_size = config.input_size
-    nb_epochs = config.nb_epochs
-
-    sampler = Sampler(config.data_config).to(config.device)
+    dataset = FactorizedDataset(config.data_config).to(config.device)
     model = Model(config.model_config).to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
-    # define inputs, outputs, and a distribution over inputs
-    inputs = torch.arange(input_size).to(dtype=int, device=DEVICE)
-    targets = sampler.probas
-    input_probas = (inputs.float() + 1) ** (-config.zipf_coef)
-    input_probas /= input_probas.sum()
+    inputs = dataset.data
+    targets = dataset.probas
 
     # placeholders
-    losses = torch.empty((nb_epochs, 2), device=DEVICE)
+    nb_epochs = config.nb_epochs
+    losses = torch.empty(nb_epochs, device=DEVICE)
 
     # compute minimum loss
-    all_loss = F.cross_entropy(torch.log(targets), targets, reduction="none")
-    min_loss = all_loss.mean().item()
-    all_loss *= input_probas
-    min_weighted_loss = all_loss.sum().item()
+    min_loss = Categorical(probs=targets).entropy().mean().item()
     if np.isnan(min_loss):
         logger.warning("Minimum loss is NaN.")
-        min_loss = 0
-    if np.isnan(min_weighted_loss):
-        logger.warning("Minimum weighted loss is NaN.")
-        min_weighted_loss = 0
+    else:
+        losses -= min_loss
 
     # training loop
     model.train()
     for epoch in (bar := tqdm(range(nb_epochs), disable=not config.interactive)):
         logits = model(inputs)
-        all_loss = F.cross_entropy(logits, targets, reduction="none")
-        all_weighted_loss = all_loss * input_probas
-
-        loss = all_weighted_loss.sum()
+        loss = F.cross_entropy(logits, targets)
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         with torch.no_grad():
-            losses[epoch, 0] = all_loss.mean() - min_loss
-            losses[epoch, 1] = loss - min_weighted_loss
-
+            losses[epoch] += loss
         if config.interactive:
-            bar.set_postfix(loss=losses[epoch, 0].item(), weighted_loss=losses[epoch, 1].item())
+            bar.set_postfix(loss=losses[epoch].item())
         else:
-            logger.info(
-                f"Epoch {epoch}/{config.nb_epochs}: "
-                f"loss={losses[epoch, 0].item()}, weighted_loss={losses[epoch, 1].item()}, "
-            )
+            logger.info(f"Epoch {epoch}/{config.nb_epochs}: loss={losses[epoch].item()}.")
 
     # Savings
     logger.info(f"Saving results in {save_dir}.")
@@ -190,28 +163,15 @@ def run_from_config(config: ExperimentalConfig):
 
 
 DEFAULT_GRID = {
-    "input_divisors": [
-        [[2, 2, 3, 5]],
-        [[3, 4, 5]],
-        [[2, 5, 6]],
-        [[2, 3, 10]],
-        [[2, 2, 15]],
-        [[5, 12]],
-        [[3, 20]],
-        [[2, 30]],
-        [[60]],
-    ],
-    "output_divisors": [None],
+    "log_input_factors": [[2, 2, 2, 2], [1, 2, 1, 4]],
+    "alphas": [1e-3, 1e-2, 1e-1, 1],
     "compression_rate": [0.5],
-    "input_size": [60],
-    "output_size": [30],
-    "epsilon": [1e-7],
+    "data_emb_dim": [32],
     "emb_dim": [32],
     "ffn_dim": [64],
     "nb_layers": [1],
     "nb_epochs": [1000],
     "learning_rate": [1e-1],
-    "zipf_coef": [2],
 }
 
 
@@ -259,7 +219,7 @@ def run_grid(
         # setup configuration
         config_dict = dict(zip(grid.keys(), values)) | kwargs
         config_dict["interactive"] = False
-        config = ExperimentalConfig(**config_dict)
+        config = CompressionConfig(**config_dict)
 
         try:
             run_from_config(config)
@@ -298,7 +258,7 @@ def run_json(file: str, num_tasks: int = 1, task_id: int = 1, **kwargs: dict[str
             continue
         try:
             config_dict |= kwargs
-            config = ExperimentalConfig(**config_dict)
+            config = CompressionConfig(**config_dict)
             run_from_config(config)
         except Exception as e:
             logger.warning(f"Error when loading: {config_dict}")
@@ -334,52 +294,35 @@ def run_grid_json(file: str, **kwargs: dict[str, any]) -> None:
 
 
 def run_experiments(
-    input_divisors: list[list[int]] = None,
-    output_divisors: list[list[int]] = None,
-    compression_rate: float = None,
-    weights: list[float] = None,
-    input_size: int = None,
-    output_size: int = None,
-    epsilon: float = 0,
-    random: bool = False,
-    concentration: float = 1,
+    log_input_factors: list[int],
+    output_factors: list[int] = None,
+    data_emb_dim: int = 32,
+    alphas: Union[list[float], float] = 1e-3,
+    compression_rate: float = 0.5,
     emb_dim: int = 32,
     ffn_dim: int = 64,
     nb_layers: int = 1,
     nb_epochs: int = 1000,
     learning_rate: float = 1e-3,
-    zipf_coef: float = 2,
-    device: str = None,
     seed: int = None,
+    save_ext: str = "compression",
     save_weights: bool = False,
-    interactive: bool = True,
 ):
     """
     Run experiments with the given configurations
 
     Parameters
     ----------
-    input_divisors
-        List of list of input divisor to create the input factors.
-        The inner list create one factorization
-        The outer list is used to create multiple factorizations.
-    output_divisors
-        List of output divisors to create the output factors.
+    log_input_factors
+        List of log2 cardinality of the input factors.
+    output_factors
+        List of cardinality of the output factors.
+    data_emb_dim
+        Embedding dimension used for the factors generation.
+    alphas
+        Concentration coefficient for the conditional distribution.
     compression_rate
-        If output_divisors is None, this define the output_divisors through the formula
-        `output_divisor = compression_rate x input_divisor`.
-    weights
-        List of weights to create a mixture model from the different factorizations.
-    input_size
-        Number of input data.
-    output_size
-        Number of output data.
-    epsilon
-        Small value to avoid numerical instability.
-    random
-        If True, the mapping structure is totally random.
-    concentration
-        Concentration parameter for the Dirichlet distribution, if using a random mapping.
+        Compression rate between input and output factors.
     emb_dim
         Model embedding dimension.
     ffn_dim
@@ -390,33 +333,27 @@ def run_experiments(
         Number of epochs to train the model.
     learning_rate
         Learning rate for the optimizer.
-    zipf_coef
-        Coefficient for the Zipf distribution over the inputs.
     seed
         Random seed for reproducibility.
+    save_ext
+        Extension for the save directory.
     save_weights
         If True, save the model weights.
     """
-    config = ExperimentalConfig(
-        input_divisors=input_divisors,
-        output_divisors=output_divisors,
+    config = CompressionConfig(
+        log_input_factors=log_input_factors,
+        output_factors=output_factors,
+        data_emb_dim=data_emb_dim,
+        alphas=alphas,
         compression_rate=compression_rate,
-        weights=weights,
-        input_size=input_size,
-        output_size=output_size,
-        epsilon=epsilon,
-        random=random,
-        concentration=concentration,
         emb_dim=emb_dim,
         ffn_dim=ffn_dim,
         nb_layers=nb_layers,
         nb_epochs=nb_epochs,
         learning_rate=learning_rate,
-        zipf_coef=zipf_coef,
-        device=device,
         seed=seed,
+        save_ext=save_ext,
         save_weights=save_weights,
-        interactive=interactive,
     )
     run_from_config(config)
 
