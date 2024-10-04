@@ -1,27 +1,17 @@
 [
     {
-        "input_divisors": [
-            [[2, 2, 3, 5]],
-            [[3, 4, 5]],
-            [[2, 5, 6]],
-            [[2, 3, 10]],
-            [[2, 2, 15]],
-            [[5, 12]],
-            [[3, 20]],
-            [[2, 30]],
-            [[60]]
+        "log_input_factors": [
+            [1, 7]
         ],
-        "output_divisors": [null],
-        "compression_rate": [0.5],
-        "input_size": [60],
-        "output_size": [60],
-        "nb_epochs": [10000]
-    },
-    {
-        "input_divisors": [[60]],
-        "random": [true],
-        "input_size": [60],
-        "output_size": [60],
-        "nb_epochs": [10000]
+        "output_factors": [32],
+        "data_emb_dim": [32],
+        "alphas": [[1e-3, 1e3], [1e3, 1e-3]],
+        "compression_rate": [null],
+        "emb_dim": [16],
+        "ffn_dim": [32],
+        "nb_layers": [1],
+        "nb_epochs": [1000],
+        "learning_rate": [1e-1],
+        "mode": ["generalization", "compression"]
     }
 ]

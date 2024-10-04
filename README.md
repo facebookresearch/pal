@@ -9,6 +9,8 @@ git clone git@github.com:facebookresearch/pal.git
 cd pal
 pip install -e .
 ```
+This will install the codebase in your current python environment.
+If you want to install it in a special environment, you can create a new one with `conda` or `virtualenv`.
 
 ## Usage
 Please refer to the `example` folder, and in particular the `bash_script.sh` to get a sense of how to run experiments.
