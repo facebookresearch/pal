@@ -156,6 +156,10 @@ def generalization_run_from_config(config: ExperimentalConfig):
     model = Model(config.model_config).to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
+    # shared embeddings
+    model.embeddings.weight.data = dataset.emb
+    model.embeddings.weight.requires_grad = False
+
     inputs = dataset.data
     targets = dataset.probas
     random_indices = torch.randperm(len(inputs), device=DEVICE)
