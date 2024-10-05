@@ -16,11 +16,12 @@ import numpy as np
 import pandas as pd
 
 from factorization.config import CONFIG_DIR, SAVE_DIR
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
-def get_paths(save_ext: str = None) -> None:
+def get_paths(save_ext: Optional[str] = None) -> None:
     """
     Get used file paths.
 
