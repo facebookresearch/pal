@@ -1,0 +1,17 @@
+[
+    {
+        "log_input_factors": [
+            [3, 3, 3, 3, 2]
+        ],
+        "output_factors": [null],
+        "data_emb_dim": [8, 16, 32, 64],
+        "alphas": [1e-3, 1],
+        "compression_rate": [0.5],
+        "emb_dim": [8, 16],
+        "ffn_dim": [32],
+        "nb_layers": [1, 2, 3],
+        "nb_epochs": [1000],
+        "learning_rate": [1e-1],
+        "mode": ["compression"]
+    }
+]

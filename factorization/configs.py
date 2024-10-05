@@ -120,11 +120,11 @@ def load_experimental_result(config: dict[str, any], decorators: list[str] = Non
     losses = np.load(save_dir / "losses.npy")
     if len(losses.shape) == 2:
         columns = ["loss", "test_loss"]
-        train_entropy = losses[-1, 0]
-        test_entropy = losses[-1, 1]
+        train_entropy = -losses[-1, 0]
+        test_entropy = -losses[-1, 1]
     else:
         columns = ["loss"]
-        train_entropy = losses[-1]
+        train_entropy = -losses[-1]
         test_entropy = 0
     if final:
         epochs = [len(losses) - 1]
