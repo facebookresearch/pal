@@ -9,6 +9,8 @@ in the root directory of this source tree.
 @ 2024, Meta
 """
 
+# %% Debug
+
 import logging
 from dataclasses import dataclass
 from functools import reduce
@@ -22,11 +24,89 @@ from torch.utils.data import Dataset
 logger = logging.getLogger(__name__)
 
 
+# -----------------------------------------------------------------------------
+# Factors decomposition and recomposition
+# -----------------------------------------------------------------------------
+
+
+class Factorizer:
+    """
+    Factorizer of numbers into factors.
+
+    Attributes
+    ----------
+    divisors
+        List of `k` divisors to factorize numbers.
+    """
+
+    def __init__(self, divisors: torch.Tensor):
+        self.divisors = divisors
+
+    def __call__(self, inputs: torch.Tensor) -> torch.Tensor:
+        """
+        Get the factors of a number.
+
+        Parameters
+        ----------
+        inputs
+            List of `N` numbers to factorize.
+
+        Returns
+        -------
+        factors
+            Matrix `N x k` indicating the factors of each number.
+        """
+        factors = torch.empty((len(inputs), len(self.divisors)), dtype=torch.int)
+        gen = inputs
+        for i, modulo in enumerate(self.divisors):
+            factors[:, i] = gen % modulo
+            gen = gen // modulo
+        return factors
+
+    def recomposition(self, factors: torch.Tensor) -> torch.Tensor:
+        """
+        Get a number from its factors.
+
+        Parameters
+        ----------
+        factors
+            Matrix `N x k` indicating the factors of each number.
+
+        Returns
+        -------
+        outputs
+            List of `N` recomposed numbers.
+        """
+        outputs = torch.zeros(len(factors), dtype=torch.int)
+        multiplier = 1
+        for i, p in enumerate(self.divisors):
+            outputs += factors[:, i] * multiplier
+            multiplier *= p
+        return outputs
+
+
+# -----------------------------------------------------------------------------
+# Factorized transform
+# -----------------------------------------------------------------------------
+
+
+input_factors = [4, 2, 3]
+output_factors = [2, 2]
+parents = [[0, 1], [1, 2]]
+alphas = [1.0, 1.0]
+
+nb_data = reduce(mul, input_factors)
+nb_classes = reduce(mul, output_factors)
+
+emb_dim = 10
+
+
 @dataclass
 class DataConfig:
     # number of input and output factors
-    log_input_factors: list[int]
+    input_factors: list[int]
     output_factors: list[int]
+    parents: list[list[int]]
 
     # embedding dimension of the data
     emb_dim: int
@@ -39,8 +119,12 @@ class DataConfig:
         self.__post_init__()
 
     def __post_init__(self):
-        if len(self.log_input_factors) != len(self.output_factors):
-            raise ValueError("log_input_factors and output_factors must have the same length")
+        if self.parents is None:
+            logger.info("No parents specified, assuming independence")
+            self.parents = [[i] for i in range(len(self.output_factors))]
+
+        if len(self.parents) != len(self.output_factors):
+            raise ValueError("parents and output_factors must have the same length")
 
         if not isinstance(self.alphas, list):
             self.alphas = [float(self.alphas)] * len(self.output_factors)
@@ -68,33 +152,38 @@ class FactorizedDataset(Dataset):
         config:
             Configuration of the dataset
         """
+
         self.data = torch.arange(config.nb_data)
-        self.emb = torch.randn((config.nb_data, config.emb_dim))
+        x_factors = Factorizer(config.input_factors)(self.data)
+
+        self.emb = torch.zeros((config.nb_data, config.emb_dim))
+        for i in range(len(config.input_factors)):
+            emb = torch.randn((config.input_factors[i], config.emb_dim))
+            self.emb += emb[x_factors[:, i]]
+
         p_y_x = torch.ones((config.nb_data, *config.output_factors))
+        view = [config.nb_data] + [1] * len(config.output_factors)
 
-        view = [config.nb_data] + [
-            1,
-        ] * len(config.log_input_factors)
+        for i in range(len(config.output_factors)):
+            parent = config.parents[i]
+            local_factors = [config.input_factors[j] for j in parent]
+            x_local = Factorizer(local_factors).recomposition(x_factors[:, parent])
 
-        for i in range(len(config.log_input_factors)):
-            alpha = config.alphas[i]
-            log_input_factor = config.log_input_factors[i]
             output_factor = config.output_factors[i]
+            alpha = config.alphas[i]
+            if not isinstance(alpha, list):
+                alpha = torch.full((output_factor,), alpha)
+            else:
+                alpha = torch.tensor(alpha)
 
-            directions = torch.randn((config.emb_dim, log_input_factor))
-            sign = (self.emb @ directions).sign()
-            value = (torch.tensor([2**i for i in range(log_input_factor)]) * sign).sum(axis=1)
-
-            alphas = torch.full((output_factor,), alpha)
-            p_yi = Dirichlet(concentration=alphas).sample((2**log_input_factor,))
-            p_yis_x = p_yi[value.long()]
+            p_yi = Dirichlet(alpha).sample((reduce(mul, local_factors),))
+            p_yi_x = p_yi[x_local]
 
             view[i + 1] = output_factor
-            p_y_x *= p_yis_x.view(view)
+            p_y_x *= p_yi_x.view(view)
             view[i + 1] = 1
 
-        p_y_x = p_y_x.view(config.nb_data, -1)
-        self.probas = p_y_x
+        self.probas = p_y_x.view(config.nb_data, -1)
 
     def to(self, device):
         self.data = self.data.to(device)
