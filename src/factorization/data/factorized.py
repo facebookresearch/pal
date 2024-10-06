@@ -90,17 +90,6 @@ class Factorizer:
 # -----------------------------------------------------------------------------
 
 
-input_factors = [4, 2, 3]
-output_factors = [2, 2]
-parents = [[0, 1], [1, 2]]
-alphas = [1.0, 1.0]
-
-nb_data = reduce(mul, input_factors)
-nb_classes = reduce(mul, output_factors)
-
-emb_dim = 10
-
-
 @dataclass
 class DataConfig:
     # number of input and output factors
