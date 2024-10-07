@@ -190,6 +190,3 @@ class FactorizedDataset(Dataset):
     def __getitem__(self, idx):
         target = torch.multinomial(self.probas[idx], 1).item()
         return self.data[idx], target
-
-    def __repr__(self):
-        return f"Dataset with {self.n} sequences among {self.p ** self.len} unique ones."

@@ -30,7 +30,6 @@ from factorization.config import DEVICE, SAVE_DIR
 from factorization.data.factorized import DataConfig, FactorizedDataset
 from factorization.models.mlp import Model, ModelConfig
 
-torch.random.manual_seed(0)
 logger = logging.getLogger(__name__)
 
 
@@ -44,7 +43,7 @@ class ExperimentalConfig:
     # data config
     output_factors: list[int]
     input_factors: list[int]
-    parents: list[list[int]]
+    parents: list[list[int]] = None
     bernouilli: Union[list[float], float] = None
     alphas: Union[list[list[float]], list[float], float] = 1e-3
     data_split: float = 0.8
@@ -319,9 +318,7 @@ def compression_run_from_config(config: ExperimentalConfig):
 # -----------------------------------------------------------------------------
 
 
-DEFAULT_GRID = {
-    "log_input_factors": [[8]],
-}
+DEFAULT_GRID = {"TODO": 0}
 
 
 def run_grid(
@@ -439,11 +436,11 @@ def run_grid_json(file: str, **kwargs: dict[str, any]) -> None:
 
 
 def run_experiments(
-    log_input_factors: list[int],
-    output_factors: list[int] = None,
-    data_emb_dim: int = 32,
-    alphas: Union[list[float], float] = 1e-3,
-    compression_rate: float = 0.5,
+    output_factors: list[int],
+    input_factors: list[int],
+    parents: list[list[int]] = None,
+    bernouilli: Union[list[float], float] = None,
+    alphas: Union[list[list[float]], list[float], float] = 1e-3,
     data_split: float = 0.8,
     emb_dim: int = 32,
     ffn_dim: int = 64,
@@ -461,16 +458,16 @@ def run_experiments(
 
     Parameters
     ----------
-    log_input_factors
-        List of log2 cardinality of the input factors.
     output_factors
         List of cardinality of the output factors.
-    data_emb_dim
-        Embedding dimension used for the factors generation.
+    input_factors
+        List of cardinality of the input factors.
+    parents
+        List of parents for each output factor.
+    bernouilli
+        Probability of edges between input and output factor, if parents is not specified.
     alphas
         Concentration coefficient for the conditional distribution.
-    compression_rate
-        Compression rate between input and output factors.
     data_split
         Proportion of the data used for training.
     emb_dim
@@ -495,12 +492,11 @@ def run_experiments(
         If True, save the model weights.
     """
     config = ExperimentalConfig(
-        log_input_factors=log_input_factors,
-        mode=mode,
         output_factors=output_factors,
-        data_emb_dim=data_emb_dim,
+        input_factors=input_factors,
+        parents=parents,
+        bernouilli=bernouilli,
         alphas=alphas,
-        compression_rate=compression_rate,
         data_split=data_split,
         emb_dim=emb_dim,
         ffn_dim=ffn_dim,
@@ -508,6 +504,7 @@ def run_experiments(
         nb_epochs=nb_epochs,
         learning_rate=learning_rate,
         batch_size=batch_size,
+        mode=mode,
         seed=seed,
         save_ext=save_ext,
         save_weights=save_weights,
