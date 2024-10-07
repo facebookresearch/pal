@@ -1,10 +1,9 @@
 [
     {
-        "log_input_factors": [8],
+        "input_factors": [256],
         "output_factors": null,
-        "data_emb_dim": null,
+        "compression": 0.5,
         "alphas": 1e-3,
-        "compression_rate": 0.5,
         "emb_dim": 32,
         "ffn_dim": 64,
         "nb_layers": 1,
@@ -12,11 +11,10 @@
         "learning_rate": 1e-1
     },
     {
-        "log_input_factors": [8],
+        "input_factors": [256],
         "output_factors": null,
-        "data_emb_dim": null,
+        "compression": 0.5,
         "alphas": 1e-1,
-        "compression_rate": 0.5,
         "emb_dim": 32,
         "ffn_dim": 64,
         "nb_layers": 1,

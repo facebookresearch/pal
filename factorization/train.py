@@ -41,8 +41,9 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ExperimentalConfig:
     # data config
-    output_factors: list[int]
     input_factors: list[int]
+    output_factors: list[int] = None
+    compression: Union[list[float], float] = None
     parents: list[list[int]] = None
     bernouilli: Union[list[float], float] = None
     alphas: Union[list[list[float]], list[float], float] = 1e-3
@@ -75,7 +76,18 @@ class ExperimentalConfig:
         if self.mode.lower() not in ["compression", "generalization"]:
             raise ValueError(f"Invalid mode: {self.mode}.")
 
+        if self.output_factors is None:
+            logger.info("Output factors not specified. Using compression rate.")
+            if self.compression is None:
+                raise ValueError("Either output_factors or compression must be specified.")
+            if not isinstance(self.compression, list):
+                self.compression = [self.compression] * len(self.input_factors)
+            self.output_factors = [int(factor * comp) for factor, comp in zip(self.input_factors, self.compression)]
+            logger.info("Each factors will have a unique parent.")
+            self.parents = [[i] for i in range(len(self.input_factors))]
+
         if self.parents is None:
+            logger.info("Parents not specified. Drawing edges from random Bernouilli.")
             self.parents = [
                 [j for j in range(len(self.input_factors)) if torch.rand(1) < self.bernouilli]
                 for _ in range(len(self.output_factors))
@@ -436,8 +448,9 @@ def run_grid_json(file: str, **kwargs: dict[str, any]) -> None:
 
 
 def run_experiments(
-    output_factors: list[int],
     input_factors: list[int],
+    output_factors: list[int] = None,
+    compression: Union[list[float], float] = None,
     parents: list[list[int]] = None,
     bernouilli: Union[list[float], float] = None,
     alphas: Union[list[list[float]], list[float], float] = 1e-3,
@@ -458,16 +471,21 @@ def run_experiments(
 
     Parameters
     ----------
-    output_factors
-        List of cardinality of the output factors.
     input_factors
         List of cardinality of the input factors.
+    output_factors
+        List of cardinality of the output factors.
+    compression
+        If `output_factors` is not specified, it will be defined from `input_factors`.
+        This parameter specifies the compression rate for each input factor.
     parents
         List of parents for each output factor.
     bernouilli
-        Probability of edges between input and output factor, if parents is not specified.
+        If `parents` is not specified, it will be defined randomly.
+        This parameter speicficies the probability of edges between input and output factors.
     alphas
-        Concentration coefficient for the conditional distribution.
+        Concentration coefficient for the conditional distribution `p(y_i | x_i)`.
+        The conditional are drawn from a Dirichlet distribution with concentration `alpha`.
     data_split
         Proportion of the data used for training.
     emb_dim
@@ -492,8 +510,9 @@ def run_experiments(
         If True, save the model weights.
     """
     config = ExperimentalConfig(
-        output_factors=output_factors,
         input_factors=input_factors,
+        output_factors=output_factors,
+        compression=compression,
         parents=parents,
         bernouilli=bernouilli,
         alphas=alphas,
