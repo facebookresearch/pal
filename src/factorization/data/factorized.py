@@ -118,7 +118,7 @@ class DataConfig:
         if not isinstance(self.alphas, list):
             self.alphas = [float(self.alphas)] * len(self.output_factors)
 
-        self.nb_data = 2 ** sum(self.log_input_factors)
+        self.nb_data = reduce(mul, self.input_factors)
         self.nb_classes = reduce(mul, self.output_factors)
 
 
