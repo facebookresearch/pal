@@ -11,11 +11,12 @@ in the root directory of this source tree.
 
 import json
 import logging
-import math
 import traceback
 import uuid
 from dataclasses import asdict, dataclass
+from functools import reduce
 from itertools import product
+from operator import mul
 from typing import Union
 
 import numpy as np
@@ -41,11 +42,11 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ExperimentalConfig:
     # data config
-    log_input_factors: list[int]
-    output_factors: list[int] = None
-    data_emb_dim: int = None
-    alphas: Union[list[float], float] = 1e-3
-    compression_rate: float = 0.5
+    output_factors: list[int]
+    input_factors: list[int]
+    parents: list[list[int]]
+    bernouilli: Union[list[float], float] = None
+    alphas: Union[list[list[float]], list[float], float] = 1e-3
     data_split: float = 0.8
 
     # model config
@@ -75,27 +76,28 @@ class ExperimentalConfig:
         if self.mode.lower() not in ["compression", "generalization"]:
             raise ValueError(f"Invalid mode: {self.mode}.")
 
-        # default data value
-        if self.output_factors is None:
-            self.output_factors = [math.ceil(self.compression_rate * 2**factor) for factor in self.log_input_factors]
-        if self.data_emb_dim is None:
-            self.data_emb_dim = self.emb_dim
+        if self.parents is None:
+            self.parents = [
+                [j for j in range(len(self.input_factors)) if torch.rand(1) < self.bernouilli]
+                for _ in range(len(self.output_factors))
+            ]
 
         data_config = DataConfig(
-            log_input_factors=self.log_input_factors,
+            input_factors=self.input_factors,
             output_factors=self.output_factors,
-            emb_dim=self.data_emb_dim,
+            parents=self.parents,
+            emb_dim=self.emb_dim,
             alphas=self.alphas,
         )
 
         # some statistics
         self.input_size = data_config.nb_data
         self.output_size = data_config.nb_classes
-        self.data_complexity = sum([2**p * q for (p, q) in zip(self.log_input_factors, self.output_factors)])
-        self.nb_factors = len(self.log_input_factors)
-
-        if self.mode == "generalization" and self.data_emb_dim != self.emb_dim:
-            raise ValueError("Data and model embedding dimensions must be equal in generalization studies.")
+        self.data_complexity = 0
+        for i, out_factor in enumerate(self.output_factors):
+            if len(self.parents[i]):
+                in_factor = reduce(mul, [self.input_factors[p] for p in self.parents[i]])
+                self.data_complexity += in_factor * out_factor
 
         model_config = ModelConfig(
             input_size=self.input_size,
@@ -116,7 +118,6 @@ class ExperimentalConfig:
             "input_size": self.input_size,
             "output_size": self.output_size,
             "data_complexity": self.data_complexity,
-            "nb_factors": self.nb_factors,
         }
 
         self.data_config = data_config

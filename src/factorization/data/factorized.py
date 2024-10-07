@@ -98,10 +98,10 @@ class DataConfig:
     parents: list[list[int]]
 
     # embedding dimension of the data
-    emb_dim: int
+    emb_dim: int = 32
 
     # concentration coefficient for p(y_i|x_i)
-    alphas: Union[list[float], float] = 1e-3
+    alphas: Union[list[list[float]], list[float], float] = 1e-3
 
     def __init__(self, **kwargs):
         self.__dict__.update((k, v) for k, v in kwargs.items() if k in self.__annotations__)
@@ -165,7 +165,11 @@ class FactorizedDataset(Dataset):
             else:
                 alpha = torch.tensor(alpha)
 
-            p_yi = Dirichlet(alpha).sample((reduce(mul, local_factors),))
+            if len(local_factors):
+                nb_factors = reduce(mul, local_factors)
+            else:
+                nb_factors = 1
+            p_yi = Dirichlet(alpha).sample((nb_factors,))
             p_yi_x = p_yi[x_local]
 
             view[i + 1] = output_factor
