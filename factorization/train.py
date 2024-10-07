@@ -11,11 +11,12 @@ in the root directory of this source tree.
 
 import json
 import logging
-import math
 import traceback
 import uuid
 from dataclasses import asdict, dataclass
+from functools import reduce
 from itertools import product
+from operator import mul
 from typing import Union
 
 import numpy as np
@@ -29,7 +30,6 @@ from factorization.config import DEVICE, SAVE_DIR
 from factorization.data.factorized import DataConfig, FactorizedDataset
 from factorization.models.mlp import Model, ModelConfig
 
-torch.random.manual_seed(0)
 logger = logging.getLogger(__name__)
 
 
@@ -41,11 +41,12 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ExperimentalConfig:
     # data config
-    log_input_factors: list[int]
+    input_factors: list[int]
     output_factors: list[int] = None
-    data_emb_dim: int = None
-    alphas: Union[list[float], float] = 1e-3
-    compression_rate: float = 0.5
+    compression: Union[list[float], float] = None
+    parents: list[list[int]] = None
+    bernouilli: Union[list[float], float] = None
+    alphas: Union[list[list[float]], list[float], float] = 1e-3
     data_split: float = 0.8
 
     # model config
@@ -75,27 +76,39 @@ class ExperimentalConfig:
         if self.mode.lower() not in ["compression", "generalization"]:
             raise ValueError(f"Invalid mode: {self.mode}.")
 
-        # default data value
         if self.output_factors is None:
-            self.output_factors = [math.ceil(self.compression_rate * 2**factor) for factor in self.log_input_factors]
-        if self.data_emb_dim is None:
-            self.data_emb_dim = self.emb_dim
+            logger.info("Output factors not specified. Using compression rate.")
+            if self.compression is None:
+                raise ValueError("Either output_factors or compression must be specified.")
+            if not isinstance(self.compression, list):
+                self.compression = [self.compression] * len(self.input_factors)
+            self.output_factors = [int(factor * comp) for factor, comp in zip(self.input_factors, self.compression)]
+            logger.info("Each factors will have a unique parent.")
+            self.parents = [[i] for i in range(len(self.input_factors))]
+
+        if self.parents is None:
+            logger.info("Parents not specified. Drawing edges from random Bernouilli.")
+            self.parents = [
+                [j for j in range(len(self.input_factors)) if torch.rand(1) < self.bernouilli]
+                for _ in range(len(self.output_factors))
+            ]
 
         data_config = DataConfig(
-            log_input_factors=self.log_input_factors,
+            input_factors=self.input_factors,
             output_factors=self.output_factors,
-            emb_dim=self.data_emb_dim,
+            parents=self.parents,
+            emb_dim=self.emb_dim,
             alphas=self.alphas,
         )
 
         # some statistics
         self.input_size = data_config.nb_data
         self.output_size = data_config.nb_classes
-        self.data_complexity = sum([2**p * q for (p, q) in zip(self.log_input_factors, self.output_factors)])
-        self.nb_factors = len(self.log_input_factors)
-
-        if self.mode == "generalization" and self.data_emb_dim != self.emb_dim:
-            raise ValueError("Data and model embedding dimensions must be equal in generalization studies.")
+        self.data_complexity = 0
+        for i, out_factor in enumerate(self.output_factors):
+            if len(self.parents[i]):
+                in_factor = reduce(mul, [self.input_factors[p] for p in self.parents[i]])
+                self.data_complexity += in_factor * out_factor
 
         model_config = ModelConfig(
             input_size=self.input_size,
@@ -116,7 +129,6 @@ class ExperimentalConfig:
             "input_size": self.input_size,
             "output_size": self.output_size,
             "data_complexity": self.data_complexity,
-            "nb_factors": self.nb_factors,
         }
 
         self.data_config = data_config
@@ -318,9 +330,7 @@ def compression_run_from_config(config: ExperimentalConfig):
 # -----------------------------------------------------------------------------
 
 
-DEFAULT_GRID = {
-    "log_input_factors": [[8]],
-}
+DEFAULT_GRID = {"TODO": 0}
 
 
 def run_grid(
@@ -438,11 +448,12 @@ def run_grid_json(file: str, **kwargs: dict[str, any]) -> None:
 
 
 def run_experiments(
-    log_input_factors: list[int],
+    input_factors: list[int],
     output_factors: list[int] = None,
-    data_emb_dim: int = 32,
-    alphas: Union[list[float], float] = 1e-3,
-    compression_rate: float = 0.5,
+    compression: Union[list[float], float] = None,
+    parents: list[list[int]] = None,
+    bernouilli: Union[list[float], float] = None,
+    alphas: Union[list[list[float]], list[float], float] = 1e-3,
     data_split: float = 0.8,
     emb_dim: int = 32,
     ffn_dim: int = 64,
@@ -460,16 +471,21 @@ def run_experiments(
 
     Parameters
     ----------
-    log_input_factors
-        List of log2 cardinality of the input factors.
+    input_factors
+        List of cardinality of the input factors.
     output_factors
         List of cardinality of the output factors.
-    data_emb_dim
-        Embedding dimension used for the factors generation.
+    compression
+        If `output_factors` is not specified, it will be defined from `input_factors`.
+        This parameter specifies the compression rate for each input factor.
+    parents
+        List of parents for each output factor.
+    bernouilli
+        If `parents` is not specified, it will be defined randomly.
+        This parameter speicficies the probability of edges between input and output factors.
     alphas
-        Concentration coefficient for the conditional distribution.
-    compression_rate
-        Compression rate between input and output factors.
+        Concentration coefficient for the conditional distribution `p(y_i | x_i)`.
+        The conditional are drawn from a Dirichlet distribution with concentration `alpha`.
     data_split
         Proportion of the data used for training.
     emb_dim
@@ -494,12 +510,12 @@ def run_experiments(
         If True, save the model weights.
     """
     config = ExperimentalConfig(
-        log_input_factors=log_input_factors,
-        mode=mode,
+        input_factors=input_factors,
         output_factors=output_factors,
-        data_emb_dim=data_emb_dim,
+        compression=compression,
+        parents=parents,
+        bernouilli=bernouilli,
         alphas=alphas,
-        compression_rate=compression_rate,
         data_split=data_split,
         emb_dim=emb_dim,
         ffn_dim=ffn_dim,
@@ -507,6 +523,7 @@ def run_experiments(
         nb_epochs=nb_epochs,
         learning_rate=learning_rate,
         batch_size=batch_size,
+        mode=mode,
         seed=seed,
         save_ext=save_ext,
         save_weights=save_weights,

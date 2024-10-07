@@ -17,12 +17,11 @@ import pandas as pd
 import torch
 
 from factorization.config import CONFIG_DIR, SAVE_DIR
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
-def get_paths(save_ext: Optional[str] = None, suffix: Optional[str] = None) -> None:
+def get_paths(save_ext: str = None, suffix: str = None) -> None:
     """
     Get used file paths.
 
