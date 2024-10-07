@@ -51,7 +51,8 @@ class ExperimentalConfig:
 
     # model config
     emb_dim: int = 32
-    ffn_dim: int = 64
+    ratio_dim: int = 2
+    ffn_dim: int = None
     nb_layers: int = 1
 
     # optimization config
@@ -69,11 +70,14 @@ class ExperimentalConfig:
     save_ext: str = None
     save_weights: bool = False
     interactive: bool = True
-    id: str = None
+    unique_id: str = None
 
     def __post_init__(self):
+        if self.seed is not None:
+            torch.manual_seed(seed=self.seed)
+
         self.mode = self.mode.lower()
-        if self.mode.lower() not in ["compression", "generalization"]:
+        if self.mode not in ["compression", "generalization"]:
             raise ValueError(f"Invalid mode: {self.mode}.")
 
         if self.output_factors is None:
@@ -109,6 +113,11 @@ class ExperimentalConfig:
             if len(self.parents[i]):
                 in_factor = reduce(mul, [self.input_factors[p] for p in self.parents[i]])
                 self.data_complexity += in_factor * out_factor
+        logger.info(f"Data complexity: {self.data_complexity}.")
+
+        if self.ffn_dim is None:
+            logger.info("Setting `ffn_dim` to `ratio_dim * emb_dim`.")
+            self.ffn_dim = int(self.emb_dim * self.ratio_dim)
 
         model_config = ModelConfig(
             input_size=self.input_size,
@@ -119,8 +128,8 @@ class ExperimentalConfig:
         )
 
         # saving identifier
-        if self.id is None:
-            self.id = uuid.uuid4().hex
+        if self.unique_id is None:
+            self.unique_id = uuid.uuid4().hex
         if self.save_ext is None:
             self.save_ext = self.mode
 
@@ -134,8 +143,6 @@ class ExperimentalConfig:
         self.data_config = data_config
         self.model_config = model_config
         self.device = DEVICE
-        if self.seed is not None:
-            torch.manual_seed(seed=self.seed)
 
 
 def run_from_config(config: ExperimentalConfig):
@@ -167,7 +174,7 @@ def generalization_run_from_config(config: ExperimentalConfig):
     logger.info(f"Running experiment with config {config}.")
 
     # save config
-    save_dir = SAVE_DIR / config.save_ext / config.id
+    save_dir = SAVE_DIR / config.save_ext / config.unique_id
     save_dir.mkdir(exist_ok=True, parents=True)
     with open(save_dir / "config.json", "w") as f:
         json.dump(config.dict_repr, f)
@@ -277,7 +284,7 @@ def compression_run_from_config(config: ExperimentalConfig):
     logger.info(f"Running experiment with config {config}.")
 
     # save config
-    save_dir = SAVE_DIR / config.save_ext / config.id
+    save_dir = SAVE_DIR / config.save_ext / config.unique_id
     save_dir.mkdir(exist_ok=True, parents=True)
     with open(save_dir / "config.json", "w") as f:
         json.dump(config.dict_repr, f)
@@ -330,11 +337,8 @@ def compression_run_from_config(config: ExperimentalConfig):
 # -----------------------------------------------------------------------------
 
 
-DEFAULT_GRID = {"TODO": 0}
-
-
 def run_grid(
-    grid: dict[str, list[any]] = DEFAULT_GRID,
+    grid: dict[str, list[any]],
     num_tasks: int = 1,
     task_id: int = 1,
     save_weight: bool = False,
@@ -456,7 +460,8 @@ def run_experiments(
     alphas: Union[list[list[float]], list[float], float] = 1e-3,
     data_split: float = 0.8,
     emb_dim: int = 32,
-    ffn_dim: int = 64,
+    ratio_dim: int = 4,
+    ffn_dim: int = None,
     nb_layers: int = 1,
     nb_epochs: int = 1000,
     learning_rate: float = 1e-3,
@@ -490,6 +495,8 @@ def run_experiments(
         Proportion of the data used for training.
     emb_dim
         Model embedding dimension.
+    ratio_dim
+        Ratio between the embedding dimension and the MLP hidden dimension.
     ffn_dim
         Hidden dimension of the feedforward layers.
     nb_layers
@@ -518,6 +525,7 @@ def run_experiments(
         alphas=alphas,
         data_split=data_split,
         emb_dim=emb_dim,
+        ratio_dim=ratio_dim,
         ffn_dim=ffn_dim,
         nb_layers=nb_layers,
         nb_epochs=nb_epochs,
