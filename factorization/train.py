@@ -42,11 +42,11 @@ logger = logging.getLogger(__name__)
 class ExperimentalConfig:
     # data config
     input_factors: list[int]
-    output_factors: list[int] = None
+    output_factors: list[int]
     parents: list[list[int]] = None
-    bernouilli: Union[list[float], float] = 1.0
-    alphas: Union[list[list[float]], list[float], float] = 1e-3
-    data_split: float = 0.8
+    bernouilli: Union[list[float], float] = 0.5
+    alphas: Union[list[list[float]], list[float], float] = 1e-2
+    data_split: float = 0.9
 
     # model config
     emb_dim: int = 32
@@ -55,7 +55,7 @@ class ExperimentalConfig:
     nb_layers: int = 1
 
     # optimization config
-    nb_epochs: int = 1000
+    nb_epochs: int = 10_000
     learning_rate: float = 1e-3
     batch_size: int = None
 
@@ -254,7 +254,6 @@ def generalization_run_from_config(config: ExperimentalConfig):
 
             running_loss = 0
             for inputs, targets in testloader:
-                inputs, targets = inputs, targets
                 logits = model(inputs)
                 loss = F.cross_entropy(logits, targets)
                 running_loss += loss.item()
