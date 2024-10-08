@@ -43,9 +43,8 @@ class ExperimentalConfig:
     # data config
     input_factors: list[int]
     output_factors: list[int] = None
-    compression: Union[list[float], float] = None
     parents: list[list[int]] = None
-    bernouilli: Union[list[float], float] = None
+    bernouilli: Union[list[float], float] = 1.0
     alphas: Union[list[list[float]], list[float], float] = 1e-3
     data_split: float = 0.8
 
@@ -65,6 +64,7 @@ class ExperimentalConfig:
 
     # randomness
     seed: int = None
+    bernouilli_seed: int = None
 
     # saving options
     save_ext: str = None
@@ -73,22 +73,16 @@ class ExperimentalConfig:
     unique_id: str = None
 
     def __post_init__(self):
-        if self.seed is not None:
-            torch.manual_seed(seed=self.seed)
+        if self.bernouilli_seed is None:
+            self.bernouilli_seed = self.seed
+
+        # useful to ensure graph filtration
+        if self.bernouilli_seed is not None:
+            torch.manual_seed(seed=self.bernouilli_seed)
 
         self.mode = self.mode.lower()
         if self.mode not in ["compression", "generalization"]:
             raise ValueError(f"Invalid mode: {self.mode}.")
-
-        if self.output_factors is None:
-            logger.info("Output factors not specified. Using compression rate.")
-            if self.compression is None:
-                raise ValueError("Either output_factors or compression must be specified.")
-            if not isinstance(self.compression, list):
-                self.compression = [self.compression] * len(self.input_factors)
-            self.output_factors = [int(factor * comp) for factor, comp in zip(self.input_factors, self.compression)]
-            logger.info("Each factors will have a unique parent.")
-            self.parents = [[i] for i in range(len(self.input_factors))]
 
         if self.parents is None:
             logger.info("Parents not specified. Drawing edges from random Bernouilli.")
@@ -143,6 +137,9 @@ class ExperimentalConfig:
         self.data_config = data_config
         self.model_config = model_config
         self.device = DEVICE
+
+        if self.seed is not None:
+            torch.manual_seed(seed=self.seed)
 
 
 def run_from_config(config: ExperimentalConfig):
@@ -454,9 +451,8 @@ def run_grid_json(file: str, **kwargs: dict[str, any]) -> None:
 def run_experiments(
     input_factors: list[int],
     output_factors: list[int] = None,
-    compression: Union[list[float], float] = None,
     parents: list[list[int]] = None,
-    bernouilli: Union[list[float], float] = None,
+    bernouilli: Union[list[float], float] = 1.0,
     alphas: Union[list[list[float]], list[float], float] = 1e-3,
     data_split: float = 0.8,
     emb_dim: int = 32,
@@ -468,6 +464,7 @@ def run_experiments(
     batch_size: int = None,
     mode: str = "generalization",
     seed: int = None,
+    bernouilli_seed: int = None,
     save_ext: str = "interactive",
     save_weights: bool = False,
 ):
@@ -480,9 +477,6 @@ def run_experiments(
         List of cardinality of the input factors.
     output_factors
         List of cardinality of the output factors.
-    compression
-        If `output_factors` is not specified, it will be defined from `input_factors`.
-        This parameter specifies the compression rate for each input factor.
     parents
         List of parents for each output factor.
     bernouilli
@@ -511,6 +505,8 @@ def run_experiments(
         Experimental mode: generalization or compression.
     seed
         Random seed for reproducibility.
+    bernouilli_seed
+        Random seed for the graph filtration.
     save_ext
         Extension for the save directory.
     save_weights
@@ -519,7 +515,6 @@ def run_experiments(
     config = ExperimentalConfig(
         input_factors=input_factors,
         output_factors=output_factors,
-        compression=compression,
         parents=parents,
         bernouilli=bernouilli,
         alphas=alphas,
@@ -533,6 +528,7 @@ def run_experiments(
         batch_size=batch_size,
         mode=mode,
         seed=seed,
+        bernouilli_seed=bernouilli_seed,
         save_ext=save_ext,
         save_weights=save_weights,
     )
