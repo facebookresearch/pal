@@ -101,15 +101,11 @@ def load_experimental_result(config: dict[str, any], decorators: list[str] = Non
     output
         DataFrame with the experimental results
     """
-    string_decorators = [
-        "log_input_factors",
-        "output_factors",
-        "alphas",
-    ]
+    string_decorators = ["input_factors", "output_factors", "parents"]
     save_dir, _ = get_paths(config["save_ext"])
-    save_dir = save_dir / config["id"]
+    save_dir = save_dir / config["unique_id"]
     if not save_dir.exists():
-        logger.info(f"Skipping {config['id']}, no data found.")
+        logger.info(f"Skipping {config['unique_id']}, no data found.")
         return
 
     for key in string_decorators:
@@ -187,9 +183,10 @@ def load_experimental_results(
     """
     if decorators is None:
         decorators = [
-            "log_input_factors",
+            "input_factors",
             "output_factors",
-            "data_emb_dim",
+            "parents",
+            "bernouilli",
             "alphas",
             "data_split",
             "emb_dim",
@@ -199,12 +196,15 @@ def load_experimental_results(
             "batch_size",
             "mode",
             "seed",
-            "id",
+            # "bernouilli_seed",
+            "unique_id",
             "input_size",
             "output_size",
             "data_complexity",
-            "nb_factors",
+            # "input_complexity",
+            # "output_complexity",
         ]
+    list_keyword = ["input_factors", "output_factors", "parents"]
 
     all_data = []
     for experience in all_configs:
@@ -213,7 +213,7 @@ def load_experimental_results(
         skip = False
         for key, values in kwargs.items():
             exp_value = experience[key]
-            if isinstance(values, list):
+            if isinstance(values, list) and key not in list_keyword:
                 if exp_value not in values:
                     skip = True
                     break

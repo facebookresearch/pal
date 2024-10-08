@@ -103,10 +103,14 @@ class ExperimentalConfig:
         self.input_size = data_config.nb_data
         self.output_size = data_config.nb_classes
         self.data_complexity = 0
+        self.output_complexity = 0
+        self.input_complexity = 0
         for i, out_factor in enumerate(self.output_factors):
             if len(self.parents[i]):
                 in_factor = reduce(mul, [self.input_factors[p] for p in self.parents[i]])
                 self.data_complexity += in_factor * out_factor
+                self.output_complexity += out_factor
+                self.input_complexity += in_factor
         logger.info(f"Data complexity: {self.data_complexity}.")
 
         if self.ffn_dim is None:
@@ -132,6 +136,8 @@ class ExperimentalConfig:
             "input_size": self.input_size,
             "output_size": self.output_size,
             "data_complexity": self.data_complexity,
+            "input_complexity": self.input_complexity,
+            "output_complexity": self.output_complexity,
         }
 
         self.data_config = data_config
@@ -340,6 +346,7 @@ def run_grid(
     task_id: int = 1,
     save_weight: bool = False,
     nb_seeds: int = 1,
+    nb_bernouilli_seeds: int = None,
     **kwargs: dict[str, any],
 ) -> None:
     """
@@ -360,6 +367,7 @@ def run_grid(
 
     grid |= {
         "seed": range(nb_seeds),
+        "bernouilli_seed": range(nb_bernouilli_seeds) if nb_bernouilli_seeds is not None else [None],
         "save_weights": [save_weight],
     }
 
@@ -375,6 +383,11 @@ def run_grid(
         config_dict = dict(zip(grid.keys(), values)) | kwargs
         config_dict["interactive"] = False
         config = ExperimentalConfig(**config_dict)
+
+        save_dir = SAVE_DIR / config.save_ext / config.unique_id
+        save_dir.mkdir(exist_ok=True, parents=True)
+        with open(save_dir / "task_id", "w") as f:
+            f.write(str(task_id))
 
         try:
             run_from_config(config)
