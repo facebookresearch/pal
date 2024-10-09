@@ -174,6 +174,8 @@ def get_stats(res, study_factors, xaxis="epoch", **kwargs):
         "emb_dim",
         "ffn_dim",
         "nb_layers",
+        "learning_rate",
+        "batch_size",
         "mode",
         "bernouilli_seed",
         "seed",
@@ -181,11 +183,10 @@ def get_stats(res, study_factors, xaxis="epoch", **kwargs):
         "output_size",
         "data_complexity",
     ]
-    ignored = (
-        ["seed", "unique_id", "loss", "test_loss", "batch_size", "train_entropy", "test_entropy"]
-        + list(kwargs.keys())
-        + [key for key in all_factors if key not in study_factors]
-    )
+    study_factors = [key for key in study_factors if key not in list(kwargs.keys())]
+    ignored = ["seed", "unique_id", "loss", "test_loss", "train_entropy", "test_entropy"] + [
+        key for key in all_factors if key not in study_factors
+    ]
     columns = [col for col in res.columns if col not in ignored]
 
     mean = res.groupby(columns)[["loss", "test_loss"]].mean().reset_index()
@@ -206,7 +207,7 @@ def get_stats(res, study_factors, xaxis="epoch", **kwargs):
             ind &= mean[key] == val
         all_mean.append(mean[ind])
         all_std.append(std[ind])
-    return all_mean, all_std, key
+    return all_mean, all_std, keys
 
 
 if __name__ == "__main__":
