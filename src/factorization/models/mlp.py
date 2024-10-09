@@ -69,7 +69,7 @@ class Model(nn.Module):
         self.layers = torch.nn.ModuleList([FeedForwardBlock(config=config) for _ in range(config.nb_layers)])
         self.output = nn.Linear(config.emb_dim, config.output_size, bias=False)
         self.norm = RMSNorm()
-        self.flops = self.get_flops(config)
+        self.flops = self.get_flops(config.emb_dim, config.ffn_dim, config.nb_layers, config.output_size)
 
     def forward(self, x: torch.Tensor):
         out = self.embeddings(x)
@@ -78,22 +78,22 @@ class Model(nn.Module):
         return self.output(self.norm(out))
 
     @staticmethod
-    def get_flops(config: ModelConfig):
+    def get_flops(emb_dim: int, ffn_dim: int, nb_layers: int, output_size: int):
         """
         Get the number of flops for the model.
         """
         # lookup table
         flop_embedding = 0
 
-        flop_norm = 3 * config.emb_dim
-        flop_res = config.emb_dim
+        flop_norm = 3 * emb_dim
+        flop_res = emb_dim
 
         # 3 matrix multiplications and the silu activation
-        flop_linear = 3 * 2 * config.emb_dim * config.ffn_dim + 2 * config.ffn_dim
+        flop_linear = 3 * 2 * emb_dim * ffn_dim + 2 * ffn_dim
         flop_layer = flop_res + flop_linear + flop_norm
 
-        flop_output = 2 * config.emb_dim * config.output_size + flop_norm
+        flop_output = 2 * emb_dim * output_size + flop_norm
 
-        total_flops = flop_embedding + config.nb_layers * flop_layer + flop_output
+        total_flops = flop_embedding + nb_layers * flop_layer + flop_output
 
         return total_flops
