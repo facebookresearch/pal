@@ -45,18 +45,18 @@ class FeedForwardBlock(nn.Module):
     def forward(self, x) -> torch.Tensor:
         return self.w2(F.silu(self.w1(x)) * self.w3(x))
 
-    def get_inference_flops_per_token(self) -> int:
+    def get_inference_flop(self) -> int:
         """
-        Compute the FLOPs for a forward pass.
+        Compute the number of FLOP for a single forward pass.
         """
-        flops_w1 = self.config.emb_dim * self.config.ffn_dim * 2
-        flops_silu = self.config.ffn_dim * 2
-        flops_w2 = self.config.ffn_dim * self.config.emb_dim * 2
-        flops_w3 = self.config.emb_dim * self.config.ffn_dim * 2
-        flops_mul = self.config.ffn_dim
+        flop_w1 = self.config.emb_dim * self.config.ffn_dim * 2
+        flop_silu = self.config.ffn_dim * 2
+        flop_w2 = self.config.ffn_dim * self.config.emb_dim * 2
+        flop_w3 = self.config.emb_dim * self.config.ffn_dim * 2
+        flop_mul = self.config.ffn_dim
 
-        total_flops = flops_w1 + flops_silu + flops_w2 + flops_w3 + flops_mul
-        return total_flops
+        total_flop = flop_w1 + flop_silu + flop_w2 + flop_w3 + flop_mul
+        return total_flop
 
 
 class RMSNorm(torch.nn.Module):
@@ -71,9 +71,9 @@ class RMSNorm(torch.nn.Module):
     def forward(self, x):
         return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
-    def get_inference_flops_per_token(self, input_size: int) -> int:
+    def get_inference_flop(self, input_size: int) -> int:
         """
-        Compute the FLOPs for a forward pass.
+        Compute the number of FLOP for a single forward pass.
         """
         return 3 * input_size
 
@@ -99,23 +99,23 @@ class Model(nn.Module):
             out = layer(self.norm(out)) + out
         return self.output(self.norm(out))
 
-    def get_inference_flops_per_token(self) -> int:
+    def get_inference_flop(self) -> int:
         """
-        Compute the FLOPs for a forward pass.
+        Compute the number of FLOP for a single forward pass.
         """
-        total_flops = (
-            0  # The embedding layer is a lookup operation, no FLOPs
-            + sum(feed_forward_block.get_inference_flops_per_token() for feed_forward_block in self.layers)
+        total_flop = (
+            0  # The embedding layer is a lookup operation, no FLOP
+            + sum(feed_forward_block.get_inference_flop() for feed_forward_block in self.layers)
             + 2 * self.config.emb_dim * self.config.output_size  # output layer
-            + self.norm.get_inference_flops_per_token(input_size=self.config.emb_dim)  # normalization layer
+            + self.norm.get_inference_flop(input_size=self.config.emb_dim)  # normalization layer
         )
-        return total_flops
+        return total_flop
 
-    def get_flops_per_token(self) -> int:
+    def get_training_flop(self) -> int:
         """
-        Compute the FLOPs for a training step as the sum of FLOPs at forward and backward pass.
+        Compute the number of FLOP for a single training step, as the sum of the number of FLOP for a
+        single forward and backward pass.
         """
         return (
-            self.get_inference_flops_per_token()  # forward pass
-            + 2 * self.get_inference_flops_per_token()  # approximation for backward pass
+            self.get_inference_flop() + 2 * self.get_inference_flop()  # forward pass  # approximation for backward pass
         )
