@@ -45,7 +45,7 @@ class FeedForwardBlock(nn.Module):
     def forward(self, x) -> torch.Tensor:
         return self.w2(F.silu(self.w1(x)) * self.w3(x))
 
-    def get_inference_flop(self) -> int:
+    def get_forward_pass_flow(self) -> int:
         """
         Compute the number of FLOP for a single forward pass.
         """
@@ -71,7 +71,7 @@ class RMSNorm(torch.nn.Module):
     def forward(self, x):
         return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
-    def get_inference_flop(self, input_size: int) -> int:
+    def get_forward_pass_flow(self, input_size: int) -> int:
         """
         Compute the number of FLOP for a single forward pass.
         """
@@ -99,15 +99,15 @@ class Model(nn.Module):
             out = layer(self.norm(out)) + out
         return self.output(self.norm(out))
 
-    def get_inference_flop(self) -> int:
+    def get_forward_pass_flow(self) -> int:
         """
         Compute the number of FLOP for a single forward pass.
         """
         total_flop = (
             0  # The embedding layer is a lookup operation, no FLOP
-            + sum(feed_forward_block.get_inference_flop() for feed_forward_block in self.layers)
+            + sum(feed_forward_block.get_forward_pass_flow() for feed_forward_block in self.layers)
             + 2 * self.config.emb_dim * self.config.output_size  # output layer
-            + self.norm.get_inference_flop(input_size=self.config.emb_dim)  # normalization layer
+            + self.norm.get_forward_pass_flow(input_size=self.config.emb_dim)  # normalization layer
         )
         return total_flop
 
@@ -117,5 +117,6 @@ class Model(nn.Module):
         single forward and backward pass.
         """
         return (
-            self.get_inference_flop() + 2 * self.get_inference_flop()  # forward pass  # approximation for backward pass
+            self.get_forward_pass_flow()  # forward pass
+            + 2 * self.get_forward_pass_flow()  # approximation of backward pass
         )
