@@ -10,6 +10,7 @@ in the root directory of this source tree.
 """
 
 import logging
+from itertools import product
 
 import numpy as np
 import pandas as pd
@@ -146,7 +147,66 @@ def load_experimental_results(
     return pd.concat(all_data, ignore_index=True)
 
 
-# CLI Wrapper
+def get_stats(res, study_factors, xaxis="epoch", **kwargs):
+    """
+    Get statistics for the given DataFrame.
+
+    Parameters
+    ----------
+    res
+        DataFrame with the experimental results.
+    name
+        Name of the DataFrame.
+    study_factors
+        List of hyperparameters to study.
+    index
+        Name of the parameter to use as index, default is "epoch".
+    kwargs
+        Information to drop from the data.
+    """
+    all_factors = [
+        "input_factors",
+        "output_factors",
+        "parents",
+        "bernouilli",
+        "alphas",
+        "data_split",
+        "emb_dim",
+        "ffn_dim",
+        "nb_layers",
+        "mode",
+        "bernouilli_seed",
+        "seed",
+        "input_size",
+        "output_size",
+        "data_complexity",
+    ]
+    ignored = (
+        ["seed", "unique_id", "loss", "test_loss", "batch_size", "train_entropy", "test_entropy"]
+        + list(kwargs.keys())
+        + [key for key in all_factors if key not in study_factors]
+    )
+    columns = [col for col in res.columns if col not in ignored]
+
+    mean = res.groupby(columns)[["loss", "test_loss"]].mean().reset_index()
+    std = res.groupby(columns)[["loss", "test_loss"]].std().reset_index()
+
+    mean.set_index(xaxis, inplace=True)
+    std.set_index(xaxis, inplace=True)
+
+    all_mean = []
+    all_std = []
+
+    keys = study_factors
+    all_vals = [np.sort(res[key].unique()).tolist() for key in keys]
+
+    for vals in product(*all_vals):
+        ind = np.ones(len(mean), dtype=bool)
+        for key, val in zip(keys, vals):
+            ind &= mean[key] == val
+        all_mean.append(mean[ind])
+        all_std.append(std[ind])
+    return all_mean, all_std, key
 
 
 if __name__ == "__main__":
