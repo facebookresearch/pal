@@ -96,4 +96,5 @@ class Model(nn.Module):
 
         total_flops = flop_embedding + nb_layers * flop_layer + flop_output
 
-        return total_flops
+        # accounting for backward pass twice bigger than foward pass
+        return 3 * total_flops
