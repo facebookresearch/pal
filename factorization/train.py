@@ -42,20 +42,20 @@ logger = logging.getLogger(__name__)
 class ExperimentalConfig:
     # data config
     input_factors: list[int]
-    output_factors: list[int] = None
-    compression: Union[list[float], float] = None
+    output_factors: list[int]
     parents: list[list[int]] = None
-    bernouilli: Union[list[float], float] = None
-    alphas: Union[list[list[float]], list[float], float] = 1e-3
-    data_split: float = 0.8
+    bernouilli: Union[list[float], float] = 0.5
+    alphas: Union[list[list[float]], list[float], float] = 1e-2
+    data_split: float = 0.9
 
     # model config
     emb_dim: int = 32
-    ffn_dim: int = 64
+    ratio_dim: int = 2
+    ffn_dim: int = None
     nb_layers: int = 1
 
     # optimization config
-    nb_epochs: int = 1000
+    nb_epochs: int = 10_000
     learning_rate: float = 1e-3
     batch_size: int = None
 
@@ -64,27 +64,25 @@ class ExperimentalConfig:
 
     # randomness
     seed: int = None
+    bernouilli_seed: int = None
 
     # saving options
     save_ext: str = None
     save_weights: bool = False
     interactive: bool = True
-    id: str = None
+    unique_id: str = None
 
     def __post_init__(self):
-        self.mode = self.mode.lower()
-        if self.mode.lower() not in ["compression", "generalization"]:
-            raise ValueError(f"Invalid mode: {self.mode}.")
+        if self.bernouilli_seed is None:
+            self.bernouilli_seed = self.seed
 
-        if self.output_factors is None:
-            logger.info("Output factors not specified. Using compression rate.")
-            if self.compression is None:
-                raise ValueError("Either output_factors or compression must be specified.")
-            if not isinstance(self.compression, list):
-                self.compression = [self.compression] * len(self.input_factors)
-            self.output_factors = [int(factor * comp) for factor, comp in zip(self.input_factors, self.compression)]
-            logger.info("Each factors will have a unique parent.")
-            self.parents = [[i] for i in range(len(self.input_factors))]
+        # useful to ensure graph filtration
+        if self.bernouilli_seed is not None:
+            torch.manual_seed(seed=self.bernouilli_seed)
+
+        self.mode = self.mode.lower()
+        if self.mode not in ["compression", "generalization"]:
+            raise ValueError(f"Invalid mode: {self.mode}.")
 
         if self.parents is None:
             logger.info("Parents not specified. Drawing edges from random Bernouilli.")
@@ -105,10 +103,19 @@ class ExperimentalConfig:
         self.input_size = data_config.nb_data
         self.output_size = data_config.nb_classes
         self.data_complexity = 0
+        self.output_complexity = 0
+        self.input_complexity = 0
         for i, out_factor in enumerate(self.output_factors):
             if len(self.parents[i]):
                 in_factor = reduce(mul, [self.input_factors[p] for p in self.parents[i]])
                 self.data_complexity += in_factor * out_factor
+                self.output_complexity += out_factor
+                self.input_complexity += in_factor
+        logger.info(f"Data complexity: {self.data_complexity}.")
+
+        if self.ffn_dim is None:
+            logger.info("Setting `ffn_dim` to `ratio_dim * emb_dim`.")
+            self.ffn_dim = int(self.emb_dim * self.ratio_dim)
 
         model_config = ModelConfig(
             input_size=self.input_size,
@@ -119,8 +126,8 @@ class ExperimentalConfig:
         )
 
         # saving identifier
-        if self.id is None:
-            self.id = uuid.uuid4().hex
+        if self.unique_id is None:
+            self.unique_id = uuid.uuid4().hex
         if self.save_ext is None:
             self.save_ext = self.mode
 
@@ -129,11 +136,14 @@ class ExperimentalConfig:
             "input_size": self.input_size,
             "output_size": self.output_size,
             "data_complexity": self.data_complexity,
+            "input_complexity": self.input_complexity,
+            "output_complexity": self.output_complexity,
         }
 
         self.data_config = data_config
         self.model_config = model_config
         self.device = DEVICE
+
         if self.seed is not None:
             torch.manual_seed(seed=self.seed)
 
@@ -167,7 +177,7 @@ def generalization_run_from_config(config: ExperimentalConfig):
     logger.info(f"Running experiment with config {config}.")
 
     # save config
-    save_dir = SAVE_DIR / config.save_ext / config.id
+    save_dir = SAVE_DIR / config.save_ext / config.unique_id
     save_dir.mkdir(exist_ok=True, parents=True)
     with open(save_dir / "config.json", "w") as f:
         json.dump(config.dict_repr, f)
@@ -244,7 +254,6 @@ def generalization_run_from_config(config: ExperimentalConfig):
 
             running_loss = 0
             for inputs, targets in testloader:
-                inputs, targets = inputs, targets
                 logits = model(inputs)
                 loss = F.cross_entropy(logits, targets)
                 running_loss += loss.item()
@@ -277,7 +286,7 @@ def compression_run_from_config(config: ExperimentalConfig):
     logger.info(f"Running experiment with config {config}.")
 
     # save config
-    save_dir = SAVE_DIR / config.save_ext / config.id
+    save_dir = SAVE_DIR / config.save_ext / config.unique_id
     save_dir.mkdir(exist_ok=True, parents=True)
     with open(save_dir / "config.json", "w") as f:
         json.dump(config.dict_repr, f)
@@ -330,15 +339,13 @@ def compression_run_from_config(config: ExperimentalConfig):
 # -----------------------------------------------------------------------------
 
 
-DEFAULT_GRID = {"TODO": 0}
-
-
 def run_grid(
-    grid: dict[str, list[any]] = DEFAULT_GRID,
+    grid: dict[str, list[any]],
     num_tasks: int = 1,
     task_id: int = 1,
     save_weight: bool = False,
     nb_seeds: int = 1,
+    nb_bernouilli_seeds: int = None,
     **kwargs: dict[str, any],
 ) -> None:
     """
@@ -359,6 +366,7 @@ def run_grid(
 
     grid |= {
         "seed": range(nb_seeds),
+        "bernouilli_seed": range(nb_bernouilli_seeds) if nb_bernouilli_seeds is not None else [None],
         "save_weights": [save_weight],
     }
 
@@ -374,6 +382,11 @@ def run_grid(
         config_dict = dict(zip(grid.keys(), values)) | kwargs
         config_dict["interactive"] = False
         config = ExperimentalConfig(**config_dict)
+
+        save_dir = SAVE_DIR / config.save_ext / config.unique_id
+        save_dir.mkdir(exist_ok=True, parents=True)
+        with open(save_dir / "task_id", "w") as f:
+            f.write(str(task_id))
 
         try:
             run_from_config(config)
@@ -450,19 +463,20 @@ def run_grid_json(file: str, **kwargs: dict[str, any]) -> None:
 def run_experiments(
     input_factors: list[int],
     output_factors: list[int] = None,
-    compression: Union[list[float], float] = None,
     parents: list[list[int]] = None,
-    bernouilli: Union[list[float], float] = None,
+    bernouilli: Union[list[float], float] = 1.0,
     alphas: Union[list[list[float]], list[float], float] = 1e-3,
     data_split: float = 0.8,
     emb_dim: int = 32,
-    ffn_dim: int = 64,
+    ratio_dim: int = 4,
+    ffn_dim: int = None,
     nb_layers: int = 1,
     nb_epochs: int = 1000,
     learning_rate: float = 1e-3,
     batch_size: int = None,
     mode: str = "generalization",
     seed: int = None,
+    bernouilli_seed: int = None,
     save_ext: str = "interactive",
     save_weights: bool = False,
 ):
@@ -475,9 +489,6 @@ def run_experiments(
         List of cardinality of the input factors.
     output_factors
         List of cardinality of the output factors.
-    compression
-        If `output_factors` is not specified, it will be defined from `input_factors`.
-        This parameter specifies the compression rate for each input factor.
     parents
         List of parents for each output factor.
     bernouilli
@@ -490,6 +501,8 @@ def run_experiments(
         Proportion of the data used for training.
     emb_dim
         Model embedding dimension.
+    ratio_dim
+        Ratio between the embedding dimension and the MLP hidden dimension.
     ffn_dim
         Hidden dimension of the feedforward layers.
     nb_layers
@@ -504,6 +517,8 @@ def run_experiments(
         Experimental mode: generalization or compression.
     seed
         Random seed for reproducibility.
+    bernouilli_seed
+        Random seed for the graph filtration.
     save_ext
         Extension for the save directory.
     save_weights
@@ -512,12 +527,12 @@ def run_experiments(
     config = ExperimentalConfig(
         input_factors=input_factors,
         output_factors=output_factors,
-        compression=compression,
         parents=parents,
         bernouilli=bernouilli,
         alphas=alphas,
         data_split=data_split,
         emb_dim=emb_dim,
+        ratio_dim=ratio_dim,
         ffn_dim=ffn_dim,
         nb_layers=nb_layers,
         nb_epochs=nb_epochs,
@@ -525,6 +540,7 @@ def run_experiments(
         batch_size=batch_size,
         mode=mode,
         seed=seed,
+        bernouilli_seed=bernouilli_seed,
         save_ext=save_ext,
         save_weights=save_weights,
     )
