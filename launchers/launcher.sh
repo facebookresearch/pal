@@ -2,11 +2,11 @@
 
 # This file is useful to launch many experiment in parallel with slurm
 # ```shell
-# $ sbatch <path_to_file_folder>/compression.sh
+# $ sbatch <path_to_file_folder>/launcher.sh
 # ```
 
 # Logging configuration
-#SBATCH --job-name=compression
+#SBATCH --job-name=factorization
 #SBATCH --output=logs/%A/%a.out
 #SBATCH --error=logs/%A/%a.err
 #SBATCH --mail-type=END
