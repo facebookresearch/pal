@@ -47,7 +47,7 @@ class FeedForwardBlock(nn.Module):
 
     def get_inference_flops_per_token(self) -> int:
         """
-        Compute the FLOPs at inference time.
+        Compute the FLOPs for a forward pass.
         """
         flops_w1 = self.config.emb_dim * self.config.ffn_dim * 2
         flops_silu = self.config.ffn_dim * 2
@@ -73,7 +73,7 @@ class RMSNorm(torch.nn.Module):
 
     def get_inference_flops_per_token(self, input_size: int) -> int:
         """
-        Compute the number of FLOPs for a forward pass.
+        Compute the FLOPs for a forward pass.
         """
         return 3 * input_size
 
@@ -101,7 +101,7 @@ class Model(nn.Module):
 
     def get_inference_flops_per_token(self) -> int:
         """
-        Compute the FLOPs at inference time.
+        Compute the FLOPs for a forward pass.
         """
         total_flops = (
             0  # The embedding layer is a lookup operation, no FLOPs
