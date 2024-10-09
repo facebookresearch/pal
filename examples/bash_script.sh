@@ -13,7 +13,7 @@ mode="compression"
 # ```
 
 # Launch some training run iteractively
-python ${CODE_PATH}factorization/train.py run --mode ${mode} --input-factors '[4, 2, 3]' --compression 0.5
+python ${CODE_PATH}factorization/train.py run --mode ${mode} --input-factors '[4, 2, 3]' --output-factors '[4, 3]'
 
 # # to better understand the different parameters you can run the following
 python ${CODE_PATH}factorization/train.py run --help

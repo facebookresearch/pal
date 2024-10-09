@@ -1,8 +1,7 @@
 [
     {
         "input_factors": [256],
-        "output_factors": null,
-        "compression": 0.5,
+        "output_factors": [16],
         "alphas": 1e-3,
         "emb_dim": 32,
         "ffn_dim": 64,
@@ -12,8 +11,7 @@
     },
     {
         "input_factors": [256],
-        "output_factors": null,
-        "compression": 0.5,
+        "output_factors": [16],
         "alphas": 1e-1,
         "emb_dim": 32,
         "ffn_dim": 64,
