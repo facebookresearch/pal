@@ -15,5 +15,22 @@
         "nb_layers": [0, 1, 2, 3, 4, 5],
         "mode": ["compression"],
         "save_ext": ["compression"]
+    },
+    {
+        "input_factors": [
+            [360]
+        ],
+        "output_factors": [
+            [2, 3, 5],
+            [6, 5],
+            [2, 15],
+            [30],
+            [10]
+        ],
+        "emb_dim": [5, 10, 20],
+        "nb_layers": [0],
+        "nb_epochs": [100000],
+        "mode": ["compression"],
+        "save_ext": ["compression2"]
     }
 ]

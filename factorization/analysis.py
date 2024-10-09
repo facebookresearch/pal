@@ -189,8 +189,12 @@ def get_stats(res, study_factors, xaxis="epoch", **kwargs):
     ]
     columns = [col for col in res.columns if col not in ignored]
 
-    mean = res.groupby(columns)[["loss", "test_loss"]].mean().reset_index()
-    std = res.groupby(columns)[["loss", "test_loss"]].std().reset_index()
+    if "test_loss" not in res.columns:
+        mean = res.groupby(columns)["loss"].mean().reset_index()
+        std = res.groupby(columns)["loss"].std().reset_index()
+    else:
+        mean = res.groupby(columns)[["loss", "test_loss"]].mean().reset_index()
+        std = res.groupby(columns)[["loss", "test_loss"]].std().reset_index()
 
     mean.set_index(xaxis, inplace=True)
     std.set_index(xaxis, inplace=True)
