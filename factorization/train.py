@@ -1,5 +1,5 @@
 """
-Training scripts for the compression experiment.
+Factorization Experiments Scripts.
 
 License
 -------
@@ -11,11 +11,9 @@ in the root directory of this source tree.
 
 import json
 import logging
-import traceback
 import uuid
 from dataclasses import asdict, dataclass
-from functools import reduce
-from itertools import product
+from functools import partial, reduce
 from operator import mul
 from typing import Union
 
@@ -28,6 +26,7 @@ from tqdm import tqdm
 
 from factorization.config import DEVICE, SAVE_DIR
 from factorization.data.factorized import DataConfig, FactorizedDataset
+from factorization.io.launchers import run_grid, run_grid_json, run_json
 from factorization.models.mlp import Model, ModelConfig
 
 logger = logging.getLogger(__name__)
@@ -81,7 +80,7 @@ class ExperimentalConfig:
             torch.manual_seed(seed=self.bernouilli_seed)
 
         self.mode = self.mode.lower()
-        if self.mode not in ["compression", "generalization"]:
+        if self.mode not in ["iid", "compression", "generalization"]:
             raise ValueError(f"Invalid mode: {self.mode}.")
 
         if self.parents is None:
@@ -157,12 +156,141 @@ def run_from_config(config: ExperimentalConfig):
     config
         Configuration object.
     """
-    if config.mode == "generalization":
-        generalization_run_from_config(config)
+    if config.mode == "iid":
+        iid_run_from_config(config)
     elif config.mode == "compression":
         compression_run_from_config(config)
+    elif config.mode == "generalization":
+        generalization_run_from_config(config)
     else:
         raise ValueError(f"Invalid mode: {config.mode}.")
+
+
+def iid_run_from_config(config: ExperimentalConfig):
+    """
+    Run the experiment in iid mode from a configuration object.
+
+    Parameters
+    ----------
+    config
+        Configuration object.
+    """
+    logger.info(f"Running experiment with config {config}.")
+
+    # save config
+    save_dir = SAVE_DIR / config.save_ext / config.unique_id
+    save_dir.mkdir(exist_ok=True, parents=True)
+    with open(save_dir / "config.json", "w") as f:
+        json.dump(config.dict_repr, f)
+
+    dataset = FactorizedDataset(config.data_config).to(config.device)
+    model = Model(config.model_config).to(config.device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+
+    all_inputs = dataset.data
+    probas = dataset.probas
+
+    # placeholders
+    nb_epochs = config.nb_epochs
+    losses = torch.zeros((nb_epochs + 1, 2), device=DEVICE)
+
+    # compute minimum loss
+    min_loss = Categorical(probs=dataset.probas).entropy().mean().item()
+    if np.isnan(min_loss):
+        logger.warning("Minimum loss is NaN.")
+    else:
+        losses -= min_loss
+
+    # training loop
+    model.train()
+    for epoch in (bar := tqdm(range(nb_epochs), disable=not config.interactive)):
+        inputs = torch.randint(0, config.input_size, (config.batch_size,), device=DEVICE)
+        targets = torch.multinomial(dataset.probas[inputs], 1).squeeze()
+        logits = model(inputs)
+        loss = F.cross_entropy(logits, targets)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        with torch.no_grad():
+            losses[epoch, 0] += loss
+            logits = model(all_inputs)
+            losses[epoch, 1] += F.cross_entropy(logits, probas)
+
+        if config.interactive:
+            bar.set_postfix(train_loss=losses[epoch, 0].item(), test_loss=losses[epoch, 1].item())
+        else:
+            logger.info(
+                f"Epoch {epoch}/{config.nb_epochs}: losses={losses[epoch, 0].item()}, {losses[epoch, 1].item()}."
+            )
+
+    # Savings
+    logger.info(f"Saving results in {save_dir}.")
+    save_dir.mkdir(exist_ok=True, parents=True)
+    np.save(save_dir / "losses.npy", losses.cpu().numpy())
+    if config.save_weights:
+        torch.save(model.state_dict(), save_dir / "model.pth")
+
+
+def compression_run_from_config(config: ExperimentalConfig):
+    """
+    Run the experiment in compression mode from a configuration object.
+
+    Parameters
+    ----------
+    config
+        Configuration object.
+    """
+    logger.info(f"Running experiment with config {config}.")
+
+    # save config
+    save_dir = SAVE_DIR / config.save_ext / config.unique_id
+    save_dir.mkdir(exist_ok=True, parents=True)
+    with open(save_dir / "config.json", "w") as f:
+        json.dump(config.dict_repr, f)
+
+    dataset = FactorizedDataset(config.data_config).to(config.device)
+    model = Model(config.model_config).to(config.device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+
+    inputs = dataset.data
+    targets = dataset.probas
+
+    # placeholders
+    nb_epochs = config.nb_epochs
+    losses = torch.zeros(nb_epochs + 1, device=DEVICE)
+
+    # compute minimum loss
+    min_loss = Categorical(probs=targets).entropy().mean().item()
+    if np.isnan(min_loss):
+        logger.warning("Minimum loss is NaN.")
+    else:
+        losses -= min_loss
+
+    # training loop
+    model.train()
+    for epoch in (bar := tqdm(range(nb_epochs), disable=not config.interactive)):
+        logits = model(inputs)
+        loss = F.cross_entropy(logits, targets)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        with torch.no_grad():
+            losses[epoch] += loss
+        if config.interactive:
+            bar.set_postfix(loss=losses[epoch].item())
+        else:
+            logger.info(f"Epoch {epoch}/{config.nb_epochs}: loss={losses[epoch].item()}.")
+
+    # Savings
+    logger.info(f"Saving results in {save_dir}.")
+    save_dir.mkdir(exist_ok=True, parents=True)
+    np.save(save_dir / "losses.npy", losses.cpu().numpy())
+    if config.save_weights:
+        torch.save(model.state_dict(), save_dir / "model.pth")
 
 
 def generalization_run_from_config(config: ExperimentalConfig):
@@ -274,187 +402,6 @@ def generalization_run_from_config(config: ExperimentalConfig):
         torch.save(model.state_dict(), save_dir / "model.pth")
 
 
-def compression_run_from_config(config: ExperimentalConfig):
-    """
-    Run the experiment in compression mode from a configuration object.
-
-    Parameters
-    ----------
-    config
-        Configuration object.
-    """
-    logger.info(f"Running experiment with config {config}.")
-
-    # save config
-    save_dir = SAVE_DIR / config.save_ext / config.unique_id
-    save_dir.mkdir(exist_ok=True, parents=True)
-    with open(save_dir / "config.json", "w") as f:
-        json.dump(config.dict_repr, f)
-
-    dataset = FactorizedDataset(config.data_config).to(config.device)
-    model = Model(config.model_config).to(config.device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-
-    inputs = dataset.data
-    targets = dataset.probas
-
-    # placeholders
-    nb_epochs = config.nb_epochs
-    losses = torch.zeros(nb_epochs + 1, device=DEVICE)
-
-    # compute minimum loss
-    min_loss = Categorical(probs=targets).entropy().mean().item()
-    if np.isnan(min_loss):
-        logger.warning("Minimum loss is NaN.")
-    else:
-        losses -= min_loss
-
-    # training loop
-    model.train()
-    for epoch in (bar := tqdm(range(nb_epochs), disable=not config.interactive)):
-        logits = model(inputs)
-        loss = F.cross_entropy(logits, targets)
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        with torch.no_grad():
-            losses[epoch] += loss
-        if config.interactive:
-            bar.set_postfix(loss=losses[epoch].item())
-        else:
-            logger.info(f"Epoch {epoch}/{config.nb_epochs}: loss={losses[epoch].item()}.")
-
-    # Savings
-    logger.info(f"Saving results in {save_dir}.")
-    save_dir.mkdir(exist_ok=True, parents=True)
-    np.save(save_dir / "losses.npy", losses.cpu().numpy())
-    if config.save_weights:
-        torch.save(model.state_dict(), save_dir / "model.pth")
-
-
-# -----------------------------------------------------------------------------
-# Grid runs
-# -----------------------------------------------------------------------------
-
-
-def run_grid(
-    grid: dict[str, list[any]],
-    num_tasks: int = 1,
-    task_id: int = 1,
-    save_weight: bool = False,
-    nb_seeds: int = 1,
-    nb_bernouilli_seeds: int = None,
-    **kwargs: dict[str, any],
-) -> None:
-    """
-    Run a grid of configurations for training.
-
-    Parameters
-    ----------
-    num_tasks:
-        The total number of tasks to run concurrently.
-    task_id:
-        The ID of the current task.
-    save_weight:
-        Whether to save the weights.
-    nb_seeds:
-        The number of seeds to run.
-    """
-    logger.info(f"Running task {task_id}/{num_tasks}.")
-
-    grid |= {
-        "seed": range(nb_seeds),
-        "bernouilli_seed": range(nb_bernouilli_seeds) if nb_bernouilli_seeds is not None else [None],
-        "save_weights": [save_weight],
-    }
-
-    nb_configs = sum(1 for _ in product(*grid.values()))
-    logger.info(f"Running {nb_configs} configurations with {num_tasks} tasks.")
-
-    for i, values in enumerate(product(*grid.values())):
-        # Handling the grid concurrently with many tasks
-        if i % num_tasks != (task_id - 1):
-            continue
-
-        # setup configuration
-        config_dict = dict(zip(grid.keys(), values)) | kwargs
-        config_dict["interactive"] = False
-        config = ExperimentalConfig(**config_dict)
-
-        save_dir = SAVE_DIR / config.save_ext / config.unique_id
-        save_dir.mkdir(exist_ok=True, parents=True)
-        with open(save_dir / "task_id", "w") as f:
-            f.write(str(task_id))
-
-        try:
-            run_from_config(config)
-        except Exception as e:
-            logger.warning(f"Error for configuration: {config}.")
-            logger.warning(traceback.format_exc())
-            logger.warning(e)
-            continue
-
-
-# -----------------------------------------------------------------------------
-# JSON interface
-# -----------------------------------------------------------------------------
-
-
-def run_json(file: str, num_tasks: int = 1, task_id: int = 1, **kwargs: dict[str, any]) -> None:
-    """
-    Run experiments from a JSON file.
-
-    Parameters
-    ----------
-    num_tasks:
-        The total number of tasks to run concurrently.
-    task_id:
-        The ID of the current task.
-    file:
-        The path to the JSONL file.
-    kwargs:
-        Additional arguments to override the configuration.
-    """
-    with open(file, "r") as f:
-        all_configs = json.load(f)
-    for i, config_dict in enumerate(all_configs):
-        # Handling the grid concurrently with many tasks
-        if i % num_tasks != (task_id - 1):
-            continue
-        try:
-            config_dict |= kwargs
-            config = ExperimentalConfig(**config_dict)
-            run_from_config(config)
-        except Exception as e:
-            logger.warning(f"Error when loading: {config_dict}")
-            logger.warning(traceback.format_exc())
-            logger.warning(e)
-
-
-def run_grid_json(file: str, **kwargs: dict[str, any]) -> None:
-    """
-    Run grid experiments from a JSON file.
-
-    Parameters
-    ----------
-    num_tasks:
-        The total number of tasks to run concurrently.
-    kwargs:
-        Additional arguments to pass to `run_grid`.
-    """
-    with open(file, "r") as f:
-        all_grids = json.load(f)
-    for grid in all_grids:
-        try:
-            run_grid(grid=grid, **kwargs)
-        except Exception as e:
-            logger.warning(f"Error when loading: {grid}")
-            logger.warning(traceback.format_exc())
-            logger.warning(e)
-
-
 # -----------------------------------------------------------------------------
 # Cli interface
 # -----------------------------------------------------------------------------
@@ -474,7 +421,7 @@ def run_experiments(
     nb_epochs: int = 1000,
     learning_rate: float = 1e-3,
     batch_size: int = None,
-    mode: str = "generalization",
+    mode: str = "iid",
     seed: int = None,
     bernouilli_seed: int = None,
     save_ext: str = "interactive",
@@ -514,7 +461,7 @@ def run_experiments(
     batch_size
         Batch size for training and testing.
     mode
-        Experimental mode: generalization or compression.
+        Experimental mode: iid, compression, or generalization.
     seed
         Random seed for reproducibility.
     bernouilli_seed
@@ -559,8 +506,8 @@ if __name__ == "__main__":
     fire.Fire(
         {
             "run": run_experiments,
-            "json": run_json,
-            "grid": run_grid,
-            "json-grid": run_grid_json,
+            "json": partial(run_json, run_from_config, ExperimentalConfig),
+            "grid": partial(run_grid, run_from_config, ExperimentalConfig),
+            "json-grid": partial(run_grid_json, run_from_config, ExperimentalConfig),
         }
     )
