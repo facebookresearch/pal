@@ -108,8 +108,8 @@ class ExperimentalConfig:
             if len(self.parents[i]):
                 in_factor = reduce(mul, [self.input_factors[p] for p in self.parents[i]])
                 self.data_complexity += in_factor * out_factor
-                self.output_complexity += out_factor
                 self.input_complexity += in_factor
+            self.output_complexity += out_factor
         logger.info(f"Complexity: {self.data_complexity}, {self.input_complexity}, {self.output_complexity}.")
 
         if self.ffn_dim is None:

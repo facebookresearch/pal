@@ -205,7 +205,7 @@ def get_stats(res, study_factors, xaxis="epoch", **kwargs):
     all_mean = []
     all_std = []
 
-    keys = study_factors
+    keys = [key for key in study_factors if key != xaxis]
     all_vals = [np.sort(res[key].unique()).tolist() for key in keys]
 
     for vals in product(*all_vals):

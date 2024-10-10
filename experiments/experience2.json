@@ -32,5 +32,25 @@
         "nb_epochs": [100000],
         "mode": ["compression"],
         "save_ext": ["compression2"]
+    },
+    {
+        "input_factors": [
+            [360]
+        ],
+        "output_factors": [
+            [2, 2, 3, 3],
+            [2, 2, 9],
+            [2, 3, 6],
+            [2, 18],
+            [3, 3, 4],
+            [3, 12],
+            [4, 9],
+            [36]
+        ],
+        "emb_dim": [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+        "nb_layers": [0],
+        "nb_epochs": [100000],
+        "mode": ["compression"],
+        "save_ext": ["compression3"]
     }
 ]
