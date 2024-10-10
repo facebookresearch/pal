@@ -29,7 +29,7 @@
             [4, 9],
             [36]
         ],
-        "alphas": [1e-1],
+        "alphas": [1e-2, 1e-1],
         "batch_size": [2048, 4096],
         "mode": ["iid"],
         "save_ext": ["iid2"]

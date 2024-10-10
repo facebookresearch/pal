@@ -110,13 +110,13 @@ def load_experimental_results(
             "batch_size",
             "mode",
             "seed",
-            # "bernouilli_seed",
+            "bernouilli_seed",
             "unique_id",
             "input_size",
             "output_size",
             "data_complexity",
-            # "input_complexity",
-            # "output_complexity",
+            "input_complexity",
+            "output_complexity",
         ]
     list_keyword = ["input_factors", "output_factors", "parents"]
 
@@ -177,15 +177,18 @@ def get_stats(res, study_factors, xaxis="epoch", **kwargs):
         "learning_rate",
         "batch_size",
         "mode",
-        "bernouilli_seed",
         "seed",
+        "bernouilli_seed",
+        "unique_id",
         "input_size",
         "output_size",
         "data_complexity",
+        "input_complexity",
+        "output_complexity",
     ]
     study_factors = [key for key in study_factors if key not in list(kwargs.keys())]
-    ignored = ["seed", "unique_id", "loss", "test_loss", "train_entropy", "test_entropy"] + [
-        key for key in all_factors if key not in study_factors
+    ignored = ["loss", "test_loss", "train_entropy", "test_entropy"] + [
+        key for key in all_factors if key not in study_factors + [xaxis]
     ]
     columns = [col for col in res.columns if col not in ignored]
 

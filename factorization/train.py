@@ -110,7 +110,7 @@ class ExperimentalConfig:
                 self.data_complexity += in_factor * out_factor
                 self.output_complexity += out_factor
                 self.input_complexity += in_factor
-        logger.info(f"Data complexity: {self.data_complexity}.")
+        logger.info(f"Complexity: {self.data_complexity}, {self.input_complexity}, {self.output_complexity}.")
 
         if self.ffn_dim is None:
             logger.info("Setting `ffn_dim` to `ratio_dim * emb_dim`.")
