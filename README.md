@@ -24,8 +24,7 @@ Please refer to the `example` folder, and in particular the `bash_script.sh` to 
 
 - Ambroise Odonnat, Wassim Bouaziz, Vivien Cabannes *A Visual Case Study of the Training Dynamics in Neural Networks*, In preparation. Codebase in `project/visualization`.
 
-- In preparation. Codebase in `factorization`.
-Empirical study of memorization capacity of MLPs and their abilities to leverage hidden factorization.
+- Charles Arnal, Clement Berenfeld, Simon Rosenberg, Vivien Cabannes. *Scaling Laws with Hidden Structure*, In preparation. Codebase in `projects/factorization`.
 
 ## Organization
 The main resuable code is in the `src` folder.
