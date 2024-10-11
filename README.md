@@ -9,6 +9,11 @@ git clone git@github.com:facebookresearch/pal.git
 cd pal
 pip install -e .
 ```
+This will install the codebase in your current python environment.
+If you want to install it in a special environment, you can create a new one with `conda` or `virtualenv`.
+
+## Usage
+Please refer to the `example` folder, and in particular the `bash_script.sh` to get a sense of how to run experiments.
 
 #### Research papers
 - Vivien Cabannes, Charles Arnal, Wassim Bouaziz, Alice Yang, Francois Charton, Julia Kempe. *Iteration Head: A Mechanistic Study of Chain-of-Thought*, 2024. The codebase is in the folder `projects/cot`.
