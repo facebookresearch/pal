@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Change this variable to put your own path, it should point to the root of the repository
-CODE_PATH="./"
+# Change this variable to put your own path, the prefix should point to the root of the repository
+CODE_PATH="./projects/"
 
 # choose if you want to do a `compression` or a `generalization` study
 mode="compression"
@@ -31,6 +31,6 @@ python ${CODE_PATH}factorization/train.py json-grid examples/config_grids.json -
 
 # The results will be saved in the save directory defined from the .ini config file at the top of the repository
 # To aggregate all the experiment configuration in a single json file, you can use the following command
-python ${CODE_PATH}factorization/configs.py aggregate my_grid_folder
-python ${CODE_PATH}factorization/configs.py aggregate my_run_folder
+python ${CODE_PATH}factorization/analysis.py aggregate my_grid_folder
+python ${CODE_PATH}factorization/analysis.py aggregate my_run_folder
 # You can then easily browse through the results of your runs.
