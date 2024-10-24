@@ -14,8 +14,6 @@ import logging
 import traceback
 from itertools import product
 
-from ..config import SAVE_DIR
-
 logger = logging.getLogger(__name__)
 
 
@@ -25,6 +23,7 @@ def run_grid(
     grid: dict[str, list[any]],
     num_tasks: int = 1,
     task_id: int = 1,
+    job_id: int = 1,
     save_weight: bool = False,
     nb_seeds: int = 1,
     nb_bernouilli_seeds: int = None,
@@ -43,10 +42,14 @@ def run_grid(
         The total number of tasks to run concurrently.
     task_id:
         The ID of the current task.
+    job_id:
+        The ID of the current job.
     save_weight:
         Whether to save the weights.
     nb_seeds:
         The number of seeds to run.
+    nb_bernouilli_seeds:
+        The number of seeds for Bernouilli variables.
     """
     logger.info(f"Running task {task_id}/{num_tasks}.")
 
@@ -69,10 +72,10 @@ def run_grid(
         config_dict["interactive"] = False
         config = config_class(**config_dict)
 
-        save_dir = SAVE_DIR / config.save_ext / config.unique_id
-        save_dir.mkdir(exist_ok=True, parents=True)
-        with open(save_dir / "task_id", "w") as f:
+        with open(config.save_dir / "task_id", "w") as f:
             f.write(str(task_id))
+        with open(config.save_dir / "job_id", "w") as f:
+            f.write(str(job_id))
 
         try:
             run_from_config(config)
@@ -89,7 +92,13 @@ def run_grid(
 
 
 def run_json(
-    run_from_config, config_class, file: str, num_tasks: int = 1, task_id: int = 1, **kwargs: dict[str, any]
+    run_from_config,
+    config_class,
+    file: str,
+    num_tasks: int = 1,
+    task_id: int = 1,
+    job_id: int = 1,
+    **kwargs: dict[str, any],
 ) -> None:
     """
     Run experiments from a JSON file.
@@ -104,6 +113,8 @@ def run_json(
         The total number of tasks to run concurrently.
     task_id:
         The ID of the current task.
+    job_id:
+        The ID of the current job.
     file:
         The path to the JSONL file.
     kwargs:
@@ -118,6 +129,10 @@ def run_json(
         try:
             config_dict |= kwargs
             config = config_class(**config_dict)
+            with open(config.save_dir / "task_id", "w") as f:
+                f.write(str(task_id))
+            with open(config.save_dir / "job_id", "w") as f:
+                f.write(str(job_id))
             run_from_config(config)
         except Exception as e:
             logger.warning(f"Error when loading: {config_dict}")

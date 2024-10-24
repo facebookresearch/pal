@@ -153,6 +153,9 @@ class ExperimentalConfig:
         if self.seed is not None:
             torch.manual_seed(seed=self.seed)
 
+        self.save_dir = SAVE_DIR / self.save_ext / self.unique_id
+        self.save_dir.mkdir(exist_ok=True, parents=True)
+
 
 def run_from_config(config: ExperimentalConfig):
     """
@@ -185,9 +188,7 @@ def iid_run_from_config(config: ExperimentalConfig):
     logger.info(f"Running experiment with config {config}.")
 
     # save config
-    save_dir = SAVE_DIR / config.save_ext / config.unique_id
-    save_dir.mkdir(exist_ok=True, parents=True)
-    with open(save_dir / "config.json", "w") as f:
+    with open(config.save_dir / "config.json", "w") as f:
         json.dump(config.dict_repr, f)
 
     dataset = FactorizedDataset(config.data_config).to(config.device)
@@ -235,11 +236,10 @@ def iid_run_from_config(config: ExperimentalConfig):
             )
 
     # Savings
-    logger.info(f"Saving results in {save_dir}.")
-    save_dir.mkdir(exist_ok=True, parents=True)
-    np.save(save_dir / "losses.npy", losses.cpu().numpy())
+    logger.info(f"Saving results in {config.save_dir}.")
+    np.save(config.save_dir / "losses.npy", losses.cpu().numpy())
     if config.save_weights:
-        torch.save(model.state_dict(), save_dir / "model.pth")
+        torch.save(model.state_dict(), config.save_dir / "model.pth")
 
 
 def compression_run_from_config(config: ExperimentalConfig):
@@ -254,9 +254,7 @@ def compression_run_from_config(config: ExperimentalConfig):
     logger.info(f"Running experiment with config {config}.")
 
     # save config
-    save_dir = SAVE_DIR / config.save_ext / config.unique_id
-    save_dir.mkdir(exist_ok=True, parents=True)
-    with open(save_dir / "config.json", "w") as f:
+    with open(config.save_dir / "config.json", "w") as f:
         json.dump(config.dict_repr, f)
 
     dataset = FactorizedDataset(config.data_config).to(config.device)
@@ -297,11 +295,10 @@ def compression_run_from_config(config: ExperimentalConfig):
             logger.info(f"Epoch {epoch}/{config.nb_epochs}: loss={losses[epoch].item()}.")
 
     # Savings
-    logger.info(f"Saving results in {save_dir}.")
-    save_dir.mkdir(exist_ok=True, parents=True)
-    np.save(save_dir / "losses.npy", losses.cpu().numpy())
+    logger.info(f"Saving results in {config.save_dir}.")
+    np.save(config.save_dir / "losses.npy", losses.cpu().numpy())
     if config.save_weights:
-        torch.save(model.state_dict(), save_dir / "model.pth")
+        torch.save(model.state_dict(), config.save_dir / "model.pth")
 
 
 def generalization_run_from_config(config: ExperimentalConfig):
@@ -316,9 +313,7 @@ def generalization_run_from_config(config: ExperimentalConfig):
     logger.info(f"Running experiment with config {config}.")
 
     # save config
-    save_dir = SAVE_DIR / config.save_ext / config.unique_id
-    save_dir.mkdir(exist_ok=True, parents=True)
-    with open(save_dir / "config.json", "w") as f:
+    with open(config.save_dir / "config.json", "w") as f:
         json.dump(config.dict_repr, f)
 
     dataset = FactorizedDataset(config.data_config).to(config.device)
@@ -408,11 +403,10 @@ def generalization_run_from_config(config: ExperimentalConfig):
             )
 
     # Savings
-    logger.info(f"Saving results in {save_dir}.")
-    save_dir.mkdir(exist_ok=True, parents=True)
-    np.save(save_dir / "losses.npy", losses.cpu().numpy())
+    logger.info(f"Saving results in {config.save_dir}.")
+    np.save(config.save_dir / "losses.npy", losses.cpu().numpy())
     if config.save_weights:
-        torch.save(model.state_dict(), save_dir / "model.pth")
+        torch.save(model.state_dict(), config.save_dir / "model.pth")
 
 
 # -----------------------------------------------------------------------------
