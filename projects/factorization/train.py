@@ -21,6 +21,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.distributions import Categorical
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
@@ -42,8 +43,8 @@ class ExperimentalConfig:
     # data config
     input_factors: list[int]
     output_factors: list[int]
-    parents: list[list[int]] = None
-    bernouilli: Union[list[float], float] = 0.5
+    nb_parents: int = None
+    bernouilli: float = 0.2
     alphas: Union[list[list[float]], list[float], float] = 1e-2
     data_split: float = 0.9
 
@@ -55,7 +56,7 @@ class ExperimentalConfig:
 
     # optimization config
     nb_epochs: int = 10_000
-    learning_rate: float = 1e-3
+    learning_rate: float = 3e-2
     batch_size: int = None
 
     # experimental mode
@@ -83,10 +84,16 @@ class ExperimentalConfig:
         if self.mode not in ["iid", "compression", "generalization"]:
             raise ValueError(f"Invalid mode: {self.mode}.")
 
-        if self.parents is None:
-            logger.info("Parents not specified. Drawing edges from random Bernouilli.")
+        if self.nb_parents is None:
+            logger.info("Number of parents not specified. Drawing edges from random Bernouilli.")
             self.parents = [
                 [j for j in range(len(self.input_factors)) if torch.rand(1) < self.bernouilli]
+                for _ in range(len(self.output_factors))
+            ]
+        else:
+            logger.info(f"Drawing {self.nb_parents} edges for each output factor.")
+            self.parents = [
+                torch.randperm(len(self.input_factors))[: self.nb_parents].tolist()
                 for _ in range(len(self.output_factors))
             ]
 
@@ -132,6 +139,7 @@ class ExperimentalConfig:
 
         # dictionary representation
         self.dict_repr = asdict(self) | {
+            "parents": self.parents,
             "input_size": self.input_size,
             "output_size": self.output_size,
             "data_complexity": self.data_complexity,
@@ -186,6 +194,7 @@ def iid_run_from_config(config: ExperimentalConfig):
     dataset = FactorizedDataset(config.data_config).to(config.device)
     model = Model(config.model_config).to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+    scheduler = CosineAnnealingLR(optimizer, config.nb_epochs)
 
     all_inputs = dataset.data
     probas = dataset.probas
@@ -212,6 +221,7 @@ def iid_run_from_config(config: ExperimentalConfig):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        scheduler.step()
 
         with torch.no_grad():
             losses[epoch, 0] += loss
@@ -253,6 +263,7 @@ def compression_run_from_config(config: ExperimentalConfig):
     dataset = FactorizedDataset(config.data_config).to(config.device)
     model = Model(config.model_config).to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+    scheduler = CosineAnnealingLR(optimizer, config.nb_epochs)
 
     inputs = dataset.data
     targets = dataset.probas
@@ -277,6 +288,7 @@ def compression_run_from_config(config: ExperimentalConfig):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        scheduler.step()
 
         with torch.no_grad():
             losses[epoch] += loss
@@ -313,6 +325,7 @@ def generalization_run_from_config(config: ExperimentalConfig):
     dataset = FactorizedDataset(config.data_config).to(config.device)
     model = Model(config.model_config).to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+    scheduler = CosineAnnealingLR(optimizer, config.nb_epochs)
 
     # shared embeddings
     model.embeddings.weight.data = dataset.emb
@@ -372,6 +385,7 @@ def generalization_run_from_config(config: ExperimentalConfig):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            scheduler.step()
 
             with torch.no_grad():
                 running_loss += loss.item()
