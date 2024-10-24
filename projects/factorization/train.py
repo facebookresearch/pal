@@ -108,16 +108,16 @@ class ExperimentalConfig:
         # some statistics
         self.input_size = data_config.nb_data
         self.output_size = data_config.nb_classes
-        self.data_complexity = 0
-        self.output_complexity = 0
-        self.input_complexity = 0
+        self.statistical_complexity = 0
+        self.compression_complexity = 0
         for i, out_factor in enumerate(self.output_factors):
             if len(self.parents[i]):
                 in_factor = reduce(mul, [self.input_factors[p] for p in self.parents[i]])
-                self.data_complexity += in_factor * out_factor
-                self.input_complexity += in_factor
-            self.output_complexity += out_factor
-        logger.info(f"Complexity: {self.data_complexity}, {self.input_complexity}, {self.output_complexity}.")
+
+                self.statistical_complexity += in_factor * out_factor
+                self.compression_complexity += min(in_factor, out_factor)
+
+        logger.info(f"Complexity: {self.statistical_complexity}, {self.compression_complexity}.")
 
         if self.ffn_dim is None:
             logger.info("Setting `ffn_dim` to `ratio_dim * emb_dim`.")
@@ -142,9 +142,8 @@ class ExperimentalConfig:
             "parents": self.parents,
             "input_size": self.input_size,
             "output_size": self.output_size,
-            "data_complexity": self.data_complexity,
-            "input_complexity": self.input_complexity,
-            "output_complexity": self.output_complexity,
+            "statistical_complexity": self.statistical_complexity,
+            "compression_complexity": self.compression_complexity,
         }
 
         self.data_config = data_config
