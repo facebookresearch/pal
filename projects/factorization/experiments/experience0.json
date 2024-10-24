@@ -1,0 +1,54 @@
+[
+    {
+        "input_factors": [
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+        ],
+        "output_factors": [
+            [4, 4, 4, 4, 4, 4]
+        ],
+        "nb_parents": [1, 2, 3],
+        "alphas": [1e-2, 1e-1],
+        "emb_dim": [8, 16, 32, 64, 128],
+        "mode": ["generalization"],
+        "save_ext": ["calibration/emb"]
+    },
+    {
+        "input_factors": [
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+        ],
+        "output_factors": [
+            [4, 4, 4, 4, 4, 4]
+        ],
+        "nb_parents": [1, 2, 3],
+        "alphas": [1e-2, 1e-1],
+        "ffn_dim": [8, 16, 32, 64, 128],
+        "mode": ["generalization"],
+        "save_ext": ["calibration/ffn"]
+    },
+    {
+        "input_factors": [
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+        ],
+        "output_factors": [
+            [4, 4, 4, 4, 4, 4]
+        ],
+        "nb_parents": [1, 2, 3],
+        "alphas": [1e-2, 1e-1],
+        "nb_layers": [0, 1, 2, 3, 4, 5],
+        "mode": ["generalization"],
+        "save_ext": ["calibration/layer"]
+    },
+    {
+        "input_factors": [
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+        ],
+        "output_factors": [
+            [4, 4, 4, 4, 4, 4]
+        ],
+        "nb_parents": [1, 2, 3],
+        "alphas": [1e-2, 1e-1],
+        "learning_rate": [3e-2, 1e-2, 3e-3, 1e-3],
+        "mode": ["generalization"],
+        "save_ext": ["calibration/lr"]
+    }
+]
