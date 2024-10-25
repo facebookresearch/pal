@@ -26,7 +26,7 @@ def run_grid(
     job_id: int = 1,
     save_weight: bool = False,
     nb_seeds: int = 1,
-    nb_bernouilli_seeds: int = None,
+    nb_graph_seeds: int = None,
     **kwargs: dict[str, any],
 ) -> None:
     """
@@ -48,14 +48,14 @@ def run_grid(
         Whether to save the weights.
     nb_seeds:
         The number of seeds to run.
-    nb_bernouilli_seeds:
-        The number of seeds for Bernouilli variables.
+    nb_graph_seeds:
+        The number of seeds for graph randomness.
     """
     logger.info(f"Running task {task_id}/{num_tasks}.")
 
     grid |= {
         "seed": range(nb_seeds),
-        "bernouilli_seed": range(nb_bernouilli_seeds) if nb_bernouilli_seeds is not None else [None],
+        "graph_seed": range(nb_graph_seeds) if nb_graph_seeds is not None else [None],
         "save_weights": [save_weight],
     }
 

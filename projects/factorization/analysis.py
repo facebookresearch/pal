@@ -100,7 +100,7 @@ def load_experimental_results(
             "input_factors",
             "output_factors",
             "parents",
-            "bernouilli",
+            "beta",
             "alphas",
             "data_split",
             "emb_dim",
@@ -110,13 +110,12 @@ def load_experimental_results(
             "batch_size",
             "mode",
             "seed",
-            "bernouilli_seed",
+            "graph_seed",
             "unique_id",
             "input_size",
             "output_size",
-            "data_complexity",
-            "input_complexity",
-            "output_complexity",
+            "compression_complexity",
+            "statistical_complexity",
         ]
     list_keyword = ["input_factors", "output_factors", "parents"]
 
@@ -168,7 +167,7 @@ def get_stats(res, study_factors, xaxis="epoch", **kwargs):
         "input_factors",
         "output_factors",
         "parents",
-        "bernouilli",
+        "beta",
         "alphas",
         "data_split",
         "emb_dim",
@@ -178,13 +177,12 @@ def get_stats(res, study_factors, xaxis="epoch", **kwargs):
         "batch_size",
         "mode",
         "seed",
-        "bernouilli_seed",
+        "graph_seed",
         "unique_id",
         "input_size",
         "output_size",
-        "data_complexity",
-        "input_complexity",
-        "output_complexity",
+        "compression_complexity",
+        "statistical_complexity",
     ]
     study_factors = [key for key in study_factors if key not in list(kwargs.keys())]
     ignored = ["loss", "test_loss", "train_entropy", "test_entropy"] + [

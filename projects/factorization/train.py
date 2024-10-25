@@ -44,18 +44,18 @@ class ExperimentalConfig:
     input_factors: list[int]
     output_factors: list[int]
     nb_parents: int = None
-    bernouilli: float = 0.2
+    beta: float = 0.2
     alphas: Union[list[list[float]], list[float], float] = 1e-2
     data_split: float = 0.9
 
     # model config
     emb_dim: int = 32
-    ratio_dim: int = 2
+    ratio_dim: int = 4
     ffn_dim: int = None
     nb_layers: int = 1
 
     # optimization config
-    nb_epochs: int = 10_000
+    nb_epochs: int = 1_000
     learning_rate: float = 3e-2
     batch_size: int = None
 
@@ -64,7 +64,7 @@ class ExperimentalConfig:
 
     # randomness
     seed: int = None
-    bernouilli_seed: int = None
+    graph_seed: int = None
 
     # saving options
     save_ext: str = None
@@ -73,12 +73,12 @@ class ExperimentalConfig:
     unique_id: str = None
 
     def __post_init__(self):
-        if self.bernouilli_seed is None:
-            self.bernouilli_seed = self.seed
+        if self.graph_seed is None:
+            self.graph_seed = self.seed
 
         # useful to ensure graph filtration
-        if self.bernouilli_seed is not None:
-            torch.manual_seed(seed=self.bernouilli_seed)
+        if self.graph_seed is not None:
+            torch.manual_seed(seed=self.graph_seed)
 
         self.mode = self.mode.lower()
         if self.mode not in ["iid", "compression", "generalization"]:
@@ -87,7 +87,7 @@ class ExperimentalConfig:
         if self.nb_parents is None:
             logger.info("Number of parents not specified. Drawing edges from random Bernouilli.")
             self.parents = [
-                [j for j in range(len(self.input_factors)) if torch.rand(1) < self.bernouilli]
+                [j for j in range(len(self.input_factors)) if torch.rand(1) < self.beta]
                 for _ in range(len(self.output_factors))
             ]
         else:
@@ -418,7 +418,7 @@ def run_experiments(
     input_factors: list[int],
     output_factors: list[int] = None,
     parents: list[list[int]] = None,
-    bernouilli: Union[list[float], float] = 1.0,
+    beta: float = 1.0,
     alphas: Union[list[list[float]], list[float], float] = 1e-3,
     data_split: float = 0.8,
     emb_dim: int = 32,
@@ -430,7 +430,7 @@ def run_experiments(
     batch_size: int = None,
     mode: str = "iid",
     seed: int = None,
-    bernouilli_seed: int = None,
+    graph_seed: int = None,
     save_ext: str = "interactive",
     save_weights: bool = False,
 ):
@@ -445,7 +445,7 @@ def run_experiments(
         List of cardinality of the output factors.
     parents
         List of parents for each output factor.
-    bernouilli
+    beta
         If `parents` is not specified, it will be defined randomly.
         This parameter speicficies the probability of edges between input and output factors.
     alphas
@@ -471,7 +471,7 @@ def run_experiments(
         Experimental mode: iid, compression, or generalization.
     seed
         Random seed for reproducibility.
-    bernouilli_seed
+    graph_seed
         Random seed for the graph filtration.
     save_ext
         Extension for the save directory.
@@ -482,7 +482,7 @@ def run_experiments(
         input_factors=input_factors,
         output_factors=output_factors,
         parents=parents,
-        bernouilli=bernouilli,
+        beta=beta,
         alphas=alphas,
         data_split=data_split,
         emb_dim=emb_dim,
@@ -494,7 +494,7 @@ def run_experiments(
         batch_size=batch_size,
         mode=mode,
         seed=seed,
-        bernouilli_seed=bernouilli_seed,
+        graph_seed=graph_seed,
         save_ext=save_ext,
         save_weights=save_weights,
     )
