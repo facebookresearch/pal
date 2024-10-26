@@ -103,8 +103,8 @@ class ExperimentalConfig:
         if self.mode not in ["iid", "compression", "generalization"]:
             raise ValueError(f"Invalid mode: {self.mode}.")
 
-        if self.nb_parents is None:
-            logger.info("Number of parents not specified. Drawing edges from random Bernouilli.")
+        if self.beta is not None:
+            logger.info("Drawing edges from random Bernoulli.")
             self.parents = [
                 [j for j in range(len(self.input_factors)) if torch.rand(1) < self.beta]
                 for _ in range(len(self.output_factors))

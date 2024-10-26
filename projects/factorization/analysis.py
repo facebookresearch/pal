@@ -99,8 +99,9 @@ def load_experimental_results(
         decorators = [
             "input_factors",
             "output_factors",
-            "parents",
+            "nb_parents",
             "beta",
+            "parents",
             "alphas",
             "data_split",
             "emb_dim",
@@ -166,8 +167,9 @@ def get_stats(res, study_factors, xaxis="epoch", **kwargs):
     all_factors = [
         "input_factors",
         "output_factors",
-        "parents",
+        "nb_parents",
         "beta",
+        "parents",
         "alphas",
         "data_split",
         "emb_dim",
