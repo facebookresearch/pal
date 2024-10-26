@@ -43,14 +43,14 @@ class ExperimentalConfig:
     # data config
     input_factors: list[int]
     output_factors: list[int]
-    nb_parents: int = None
+    nb_parents: int = 2
     beta: float = 0.2
-    alphas: Union[list[list[float]], list[float], float] = 1e-2
+    alphas: Union[list[list[float]], list[float], float] = 1e-1
     data_split: float = 0.9
 
     # model config
-    emb_dim: int = 32
-    ratio_dim: int = 4
+    emb_dim: int = 64
+    ratio_dim: int = 2
     ffn_dim: int = None
     nb_layers: int = 1
 
