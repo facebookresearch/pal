@@ -11,6 +11,7 @@ in the root directory of this source tree.
 
 import json
 import logging
+import math
 import uuid
 from dataclasses import asdict, dataclass
 from functools import partial, reduce
@@ -21,7 +22,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.distributions import Categorical
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, LRScheduler
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
@@ -31,6 +32,23 @@ from factorization.io.launchers import run_grid, run_grid_json, run_json
 from factorization.models.mlp import Model, ModelConfig
 
 logger = logging.getLogger(__name__)
+
+
+# -----------------------------------------------------------------------------
+# Scheduler
+# -----------------------------------------------------------------------------
+
+
+class MyScheduler(LRScheduler):
+    def __init__(self, optimizer, T=1e6, eta_min=3e-4, last_epoch=-1):
+        self.per = math.log(T)
+        self.end = math.log(eta_min)
+        super().__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        x = (1 + math.cos(math.pi * math.log(self.last_epoch + 1) / self.per)) / 2
+        inis = [math.log(base_lr) for base_lr in self.base_lrs]
+        return [math.exp(x * ini + (1 - x) * self.end) for ini in inis]
 
 
 # -----------------------------------------------------------------------------
@@ -44,7 +62,7 @@ class ExperimentalConfig:
     input_factors: list[int]
     output_factors: list[int]
     nb_parents: int = 2
-    beta: float = 0.2
+    beta: float = None
     alphas: Union[list[list[float]], list[float], float] = 1e-1
     data_split: float = 0.9
 
@@ -58,6 +76,7 @@ class ExperimentalConfig:
     nb_epochs: int = 1_000
     learning_rate: float = 3e-2
     batch_size: int = None
+    scheduler: str = "cosine"
 
     # experimental mode
     mode: str = "generalization"
@@ -194,7 +213,11 @@ def iid_run_from_config(config: ExperimentalConfig):
     dataset = FactorizedDataset(config.data_config).to(config.device)
     model = Model(config.model_config).to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-    scheduler = CosineAnnealingLR(optimizer, config.nb_epochs)
+    if config.scheduler == "cosine":
+        scheduler = CosineAnnealingLR(optimizer, config.nb_epochs)
+    else:
+        logger.info("Using custom scheduler.")
+        scheduler = MyScheduler(optimizer)
 
     all_inputs = dataset.data
     probas = dataset.probas
@@ -260,7 +283,11 @@ def compression_run_from_config(config: ExperimentalConfig):
     dataset = FactorizedDataset(config.data_config).to(config.device)
     model = Model(config.model_config).to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-    scheduler = CosineAnnealingLR(optimizer, config.nb_epochs)
+    if config.scheduler == "cosine":
+        scheduler = CosineAnnealingLR(optimizer, config.nb_epochs)
+    else:
+        logger.info("Using custom scheduler.")
+        scheduler = MyScheduler(optimizer)
 
     inputs = dataset.data
     targets = dataset.probas
@@ -319,7 +346,11 @@ def generalization_run_from_config(config: ExperimentalConfig):
     dataset = FactorizedDataset(config.data_config).to(config.device)
     model = Model(config.model_config).to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-    scheduler = CosineAnnealingLR(optimizer, config.nb_epochs)
+    if config.scheduler == "cosine":
+        scheduler = CosineAnnealingLR(optimizer, config.nb_epochs)
+    else:
+        logger.info("Using custom scheduler.")
+        scheduler = MyScheduler(optimizer)
 
     # shared embeddings
     model.embeddings.weight.data = dataset.emb
