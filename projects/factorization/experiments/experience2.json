@@ -1,26 +1,39 @@
 [
     {
         "input_factors": [
-            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-            [4, 4, 4, 4, 4, 4],
-            [8, 8, 8, 8],
-            [16, 16, 16],
-            [64, 64],
-            [4096]
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
         ],
         "output_factors": [
-            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-            [4, 4, 4, 4, 4, 4],
-            [8, 8, 8, 8],
-            [16, 16, 16],
-            [64, 64],
-            [4096]
+            [8, 8, 8, 8]
         ],
-        "nb_parents": [1, 2, 3],
-        "alphas": [1e-2, 1e-1],
-        "emb_dim": [8, 16, 24, 32, 40, 48, 56, 64, 72, 80],
-        "learning_rate": [3e-2, 1e-2, 3e-3, 1e-3],
+        "nb_parents": [1, 2, 3, 4],
+        "alphas": [1e-1],
+        "emb_dim": [1, 2, 4, 8, 12, 16, 20, 24, 28, 32, 36],
+        "nb_epochs": [1000000],
+        "learning_rate": [3e-2],
+        "scheduler": ["cosine", "custom"],
         "mode": ["compression"],
         "save_ext": ["compression"]
+    },
+    {
+        "input_factors": [
+            [2, 2, 2],
+            [3, 3, 3],
+            [4, 4, 4],
+            [5, 5, 5],
+            [6, 6, 6],
+            [7, 7, 7]
+        ],
+        "output_factors": [
+            [32]
+        ],
+        "nb_parents": [3],
+        "alphas": [1e-1],
+        "emb_dim": [1, 3, 6, 9, 12, 15, 18, 21, 24],
+        "nb_epochs": [1000000],
+        "learning_rate": [3e-2],
+        "scheduler": ["cosine", "custom"],
+        "mode": ["compression"],
+        "save_ext": ["compression_bis"]
     }
 ]
