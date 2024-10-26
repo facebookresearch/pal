@@ -114,18 +114,34 @@
         "emb_dim": [64],
         "ratio_dim": [2],
         "nb_layers": [1],
-        "nb_epochs": [1000, 10000, 100000],
+        "nb_epochs": [1000],
         "learning_rate": [1e-1, 3e-2, 1e-2, 3e-3, 1e-3],
         "mode": ["generalization"],
         "save_ext": ["calibration/lr"]
     },
     {
         "input_factors": [
-            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+        ],
+        "output_factors": [
+            [8, 8, 8, 8]
+        ],
+        "nb_parents": [2],
+        "alphas": [1e-1],
+        "data_split": [0.9],
+        "emb_dim": [64],
+        "ratio_dim": [2],
+        "nb_layers": [1],
+        "nb_epochs": [1000000],
+        "learning_rate": [3e-2, 1e-2, 3e-3, 1e-3, 3e-4],
+        "mode": ["generalization"],
+        "save_ext": ["calibration/lr_long"]
+    },
+    {
+        "input_factors": [
             [8, 8, 8, 8]
         ],
         "output_factors": [
-            [8, 8, 8, 8],
             [4096]
         ],
         "nb_parents": [2],
@@ -134,10 +150,47 @@
         "emb_dim": [64],
         "ratio_dim": [2],
         "nb_layers": [1],
-        "nb_epochs": [100000],
+        "nb_epochs": [1000000],
+        "learning_rate": [3e-2, 1e-2, 3e-3, 1e-3, 3e-4],
+        "mode": ["generalization"],
+        "save_ext": ["calibration/lr_long"]
+    },
+    {
+        "input_factors": [
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+        ],
+        "output_factors": [
+            [8, 8, 8, 8]
+        ],
+        "nb_parents": [2],
+        "alphas": [1e-1],
+        "data_split": [0.9],
+        "emb_dim": [64],
+        "ratio_dim": [2],
+        "nb_layers": [1],
+        "nb_epochs": [1000000],
         "learning_rate": [3e-2],
         "scheduler": ["custom"],
         "mode": ["generalization"],
-        "save_ext": ["calibration/lr_schedule"]
+        "save_ext": ["calibration/lr_long"]
+    },
+    {
+        "input_factors": [
+            [8, 8, 8, 8]
+        ],
+        "output_factors": [
+            [4096]
+        ],
+        "nb_parents": [2],
+        "alphas": [1e-1],
+        "data_split": [0.9],
+        "emb_dim": [64],
+        "ratio_dim": [2],
+        "nb_layers": [1],
+        "nb_epochs": [1000000],
+        "learning_rate": [3e-2],
+        "scheduler": ["custom"],
+        "mode": ["generalization"],
+        "save_ext": ["calibration/lr_long"]
     }
 ]
