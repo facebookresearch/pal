@@ -9,11 +9,13 @@
             [4096]
         ],
         "output_factors": [
-            [4, 4, 4, 4, 4, 4]
+            [8, 8, 8, 8]
         ],
         "nb_parents": [1, 2, 3],
-        "alphas": [1e-2, 1e-1],
-        "learning_rate": [3e-2, 1e-2, 3e-3, 1e-3],
+        "alphas": [1, 1e-1, 1e-2, 1e-3],
+        "batch_size": [8192],
+        "nb_epochs": [1000],
+        "learning_rate": [3e-2],
         "mode": ["iid"],
         "save_ext": ["iid"]
     }
