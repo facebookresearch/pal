@@ -11,6 +11,7 @@ in the root directory of this source tree.
 
 import json
 import logging
+import math
 import uuid
 from dataclasses import asdict, dataclass
 from functools import partial, reduce
@@ -21,6 +22,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.distributions import Categorical
+from torch.optim.lr_scheduler import CosineAnnealingLR, LRScheduler
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
@@ -33,6 +35,23 @@ logger = logging.getLogger(__name__)
 
 
 # -----------------------------------------------------------------------------
+# Scheduler
+# -----------------------------------------------------------------------------
+
+
+class MyScheduler(LRScheduler):
+    def __init__(self, optimizer, T=1e6, eta_min=3e-4, last_epoch=-1):
+        self.per = math.log(T)
+        self.end = math.log(eta_min)
+        super().__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        x = (1 + math.cos(math.pi * math.log(self.last_epoch + 1) / self.per)) / 2
+        inis = [math.log(base_lr) for base_lr in self.base_lrs]
+        return [math.exp(x * ini + (1 - x) * self.end) for ini in inis]
+
+
+# -----------------------------------------------------------------------------
 # Main function
 # -----------------------------------------------------------------------------
 
@@ -42,28 +61,29 @@ class ExperimentalConfig:
     # data config
     input_factors: list[int]
     output_factors: list[int]
-    parents: list[list[int]] = None
-    bernouilli: Union[list[float], float] = 0.5
-    alphas: Union[list[list[float]], list[float], float] = 1e-2
+    nb_parents: int = 2
+    beta: float = None
+    alphas: Union[list[list[float]], list[float], float] = 1e-1
     data_split: float = 0.9
 
     # model config
-    emb_dim: int = 32
+    emb_dim: int = 64
     ratio_dim: int = 2
     ffn_dim: int = None
     nb_layers: int = 1
 
     # optimization config
-    nb_epochs: int = 10_000
-    learning_rate: float = 1e-3
+    nb_epochs: int = 1_000
+    learning_rate: float = 3e-2
     batch_size: int = None
+    scheduler: str = "cosine"
 
     # experimental mode
     mode: str = "generalization"
 
     # randomness
     seed: int = None
-    bernouilli_seed: int = None
+    graph_seed: int = None
 
     # saving options
     save_ext: str = None
@@ -72,21 +92,27 @@ class ExperimentalConfig:
     unique_id: str = None
 
     def __post_init__(self):
-        if self.bernouilli_seed is None:
-            self.bernouilli_seed = self.seed
+        if self.graph_seed is None:
+            self.graph_seed = self.seed
 
         # useful to ensure graph filtration
-        if self.bernouilli_seed is not None:
-            torch.manual_seed(seed=self.bernouilli_seed)
+        if self.graph_seed is not None:
+            torch.manual_seed(seed=self.graph_seed)
 
         self.mode = self.mode.lower()
         if self.mode not in ["iid", "compression", "generalization"]:
             raise ValueError(f"Invalid mode: {self.mode}.")
 
-        if self.parents is None:
-            logger.info("Parents not specified. Drawing edges from random Bernouilli.")
+        if self.beta is not None:
+            logger.info("Drawing edges from random Bernoulli.")
             self.parents = [
-                [j for j in range(len(self.input_factors)) if torch.rand(1) < self.bernouilli]
+                [j for j in range(len(self.input_factors)) if torch.rand(1) < self.beta]
+                for _ in range(len(self.output_factors))
+            ]
+        else:
+            logger.info(f"Drawing {self.nb_parents} edges for each output factor.")
+            self.parents = [
+                torch.randperm(len(self.input_factors))[: self.nb_parents].tolist()
                 for _ in range(len(self.output_factors))
             ]
 
@@ -101,16 +127,16 @@ class ExperimentalConfig:
         # some statistics
         self.input_size = data_config.nb_data
         self.output_size = data_config.nb_classes
-        self.data_complexity = 0
-        self.output_complexity = 0
-        self.input_complexity = 0
+        self.statistical_complexity = 0
+        self.compression_complexity = 0
         for i, out_factor in enumerate(self.output_factors):
             if len(self.parents[i]):
                 in_factor = reduce(mul, [self.input_factors[p] for p in self.parents[i]])
-                self.data_complexity += in_factor * out_factor
-                self.input_complexity += in_factor
-            self.output_complexity += out_factor
-        logger.info(f"Complexity: {self.data_complexity}, {self.input_complexity}, {self.output_complexity}.")
+
+                self.statistical_complexity += in_factor * out_factor
+                self.compression_complexity += min(in_factor, out_factor)
+
+        logger.info(f"Complexity: {self.statistical_complexity}, {self.compression_complexity}.")
 
         if self.ffn_dim is None:
             logger.info("Setting `ffn_dim` to `ratio_dim * emb_dim`.")
@@ -132,11 +158,11 @@ class ExperimentalConfig:
 
         # dictionary representation
         self.dict_repr = asdict(self) | {
+            "parents": self.parents,
             "input_size": self.input_size,
             "output_size": self.output_size,
-            "data_complexity": self.data_complexity,
-            "input_complexity": self.input_complexity,
-            "output_complexity": self.output_complexity,
+            "statistical_complexity": self.statistical_complexity,
+            "compression_complexity": self.compression_complexity,
         }
 
         self.data_config = data_config
@@ -145,6 +171,9 @@ class ExperimentalConfig:
 
         if self.seed is not None:
             torch.manual_seed(seed=self.seed)
+
+        self.save_dir = SAVE_DIR / self.save_ext / self.unique_id
+        self.save_dir.mkdir(exist_ok=True, parents=True)
 
 
 def run_from_config(config: ExperimentalConfig):
@@ -178,14 +207,17 @@ def iid_run_from_config(config: ExperimentalConfig):
     logger.info(f"Running experiment with config {config}.")
 
     # save config
-    save_dir = SAVE_DIR / config.save_ext / config.unique_id
-    save_dir.mkdir(exist_ok=True, parents=True)
-    with open(save_dir / "config.json", "w") as f:
+    with open(config.save_dir / "config.json", "w") as f:
         json.dump(config.dict_repr, f)
 
     dataset = FactorizedDataset(config.data_config).to(config.device)
     model = Model(config.model_config).to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+    if config.scheduler == "cosine":
+        scheduler = CosineAnnealingLR(optimizer, config.nb_epochs)
+    else:
+        logger.info("Using custom scheduler.")
+        scheduler = MyScheduler(optimizer)
 
     all_inputs = dataset.data
     probas = dataset.probas
@@ -212,6 +244,7 @@ def iid_run_from_config(config: ExperimentalConfig):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        scheduler.step()
 
         with torch.no_grad():
             losses[epoch, 0] += loss
@@ -226,11 +259,10 @@ def iid_run_from_config(config: ExperimentalConfig):
             )
 
     # Savings
-    logger.info(f"Saving results in {save_dir}.")
-    save_dir.mkdir(exist_ok=True, parents=True)
-    np.save(save_dir / "losses.npy", losses.cpu().numpy())
+    logger.info(f"Saving results in {config.save_dir}.")
+    np.save(config.save_dir / "losses.npy", losses.cpu().numpy())
     if config.save_weights:
-        torch.save(model.state_dict(), save_dir / "model.pth")
+        torch.save(model.state_dict(), config.save_dir / "model.pth")
 
 
 def compression_run_from_config(config: ExperimentalConfig):
@@ -245,14 +277,17 @@ def compression_run_from_config(config: ExperimentalConfig):
     logger.info(f"Running experiment with config {config}.")
 
     # save config
-    save_dir = SAVE_DIR / config.save_ext / config.unique_id
-    save_dir.mkdir(exist_ok=True, parents=True)
-    with open(save_dir / "config.json", "w") as f:
+    with open(config.save_dir / "config.json", "w") as f:
         json.dump(config.dict_repr, f)
 
     dataset = FactorizedDataset(config.data_config).to(config.device)
     model = Model(config.model_config).to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+    if config.scheduler == "cosine":
+        scheduler = CosineAnnealingLR(optimizer, config.nb_epochs)
+    else:
+        logger.info("Using custom scheduler.")
+        scheduler = MyScheduler(optimizer)
 
     inputs = dataset.data
     targets = dataset.probas
@@ -277,6 +312,7 @@ def compression_run_from_config(config: ExperimentalConfig):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        scheduler.step()
 
         with torch.no_grad():
             losses[epoch] += loss
@@ -286,11 +322,10 @@ def compression_run_from_config(config: ExperimentalConfig):
             logger.info(f"Epoch {epoch}/{config.nb_epochs}: loss={losses[epoch].item()}.")
 
     # Savings
-    logger.info(f"Saving results in {save_dir}.")
-    save_dir.mkdir(exist_ok=True, parents=True)
-    np.save(save_dir / "losses.npy", losses.cpu().numpy())
+    logger.info(f"Saving results in {config.save_dir}.")
+    np.save(config.save_dir / "losses.npy", losses.cpu().numpy())
     if config.save_weights:
-        torch.save(model.state_dict(), save_dir / "model.pth")
+        torch.save(model.state_dict(), config.save_dir / "model.pth")
 
 
 def generalization_run_from_config(config: ExperimentalConfig):
@@ -305,14 +340,17 @@ def generalization_run_from_config(config: ExperimentalConfig):
     logger.info(f"Running experiment with config {config}.")
 
     # save config
-    save_dir = SAVE_DIR / config.save_ext / config.unique_id
-    save_dir.mkdir(exist_ok=True, parents=True)
-    with open(save_dir / "config.json", "w") as f:
+    with open(config.save_dir / "config.json", "w") as f:
         json.dump(config.dict_repr, f)
 
     dataset = FactorizedDataset(config.data_config).to(config.device)
     model = Model(config.model_config).to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+    if config.scheduler == "cosine":
+        scheduler = CosineAnnealingLR(optimizer, config.nb_epochs)
+    else:
+        logger.info("Using custom scheduler.")
+        scheduler = MyScheduler(optimizer)
 
     # shared embeddings
     model.embeddings.weight.data = dataset.emb
@@ -335,14 +373,14 @@ def generalization_run_from_config(config: ExperimentalConfig):
         logger.warning("Minimum loss is NaN.")
         losses[-1, 0] -= min_loss
     else:
-        logger.warning(f"Minimum train loss is {min_loss}.")
+        logger.info(f"Minimum train loss is {min_loss}.")
         losses[:, 0] -= min_loss
     min_loss = Categorical(probs=targets[test_indices]).entropy().mean().item()
     if np.isnan(min_loss):
         logger.warning("Minimum loss is NaN.")
         losses[-1, 1] -= min_loss
     else:
-        logger.warning(f"Minimum test loss is {min_loss}.")
+        logger.info(f"Minimum test loss is {min_loss}.")
         losses[:, 1] -= min_loss
 
     # define dataloader
@@ -372,6 +410,7 @@ def generalization_run_from_config(config: ExperimentalConfig):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            scheduler.step()
 
             with torch.no_grad():
                 running_loss += loss.item()
@@ -395,11 +434,10 @@ def generalization_run_from_config(config: ExperimentalConfig):
             )
 
     # Savings
-    logger.info(f"Saving results in {save_dir}.")
-    save_dir.mkdir(exist_ok=True, parents=True)
-    np.save(save_dir / "losses.npy", losses.cpu().numpy())
+    logger.info(f"Saving results in {config.save_dir}.")
+    np.save(config.save_dir / "losses.npy", losses.cpu().numpy())
     if config.save_weights:
-        torch.save(model.state_dict(), save_dir / "model.pth")
+        torch.save(model.state_dict(), config.save_dir / "model.pth")
 
 
 # -----------------------------------------------------------------------------
@@ -411,7 +449,7 @@ def run_experiments(
     input_factors: list[int],
     output_factors: list[int] = None,
     parents: list[list[int]] = None,
-    bernouilli: Union[list[float], float] = 1.0,
+    beta: float = 1.0,
     alphas: Union[list[list[float]], list[float], float] = 1e-3,
     data_split: float = 0.8,
     emb_dim: int = 32,
@@ -423,7 +461,7 @@ def run_experiments(
     batch_size: int = None,
     mode: str = "iid",
     seed: int = None,
-    bernouilli_seed: int = None,
+    graph_seed: int = None,
     save_ext: str = "interactive",
     save_weights: bool = False,
 ):
@@ -438,7 +476,7 @@ def run_experiments(
         List of cardinality of the output factors.
     parents
         List of parents for each output factor.
-    bernouilli
+    beta
         If `parents` is not specified, it will be defined randomly.
         This parameter speicficies the probability of edges between input and output factors.
     alphas
@@ -464,7 +502,7 @@ def run_experiments(
         Experimental mode: iid, compression, or generalization.
     seed
         Random seed for reproducibility.
-    bernouilli_seed
+    graph_seed
         Random seed for the graph filtration.
     save_ext
         Extension for the save directory.
@@ -475,7 +513,7 @@ def run_experiments(
         input_factors=input_factors,
         output_factors=output_factors,
         parents=parents,
-        bernouilli=bernouilli,
+        beta=beta,
         alphas=alphas,
         data_split=data_split,
         emb_dim=emb_dim,
@@ -487,7 +525,7 @@ def run_experiments(
         batch_size=batch_size,
         mode=mode,
         seed=seed,
-        bernouilli_seed=bernouilli_seed,
+        graph_seed=graph_seed,
         save_ext=save_ext,
         save_weights=save_weights,
     )

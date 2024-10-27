@@ -21,4 +21,4 @@
 #SBATCH --array=1-500
 
 CODE_PATH="./projects/"
-python ${CODE_PATH}factorization/train.py json-grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID --file ${CODE_PATH}experiments/debug_experiment.json --nb-seeds 100 --save-ext debug_experiment
+python ${CODE_PATH}factorization/train.py json-grid --num-tasks $SLURM_ARRAY_TASK_COUNT --task-id $SLURM_ARRAY_TASK_ID --file ${CODE_PATH}factorization/experiments/debug_experiment.json --nb-seeds 100 --save-ext debug_experiment
