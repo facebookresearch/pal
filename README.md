@@ -16,15 +16,17 @@ If you want to install it in a special environment, you can create a new one wit
 Please refer to the `example` folder, and in particular the `bash_script.sh` to get a sense of how to run experiments.
 
 #### Research papers
-- Vivien Cabannes, Charles Arnal, Wassim Bouaziz, Alice Yang, Francois Charton, Julia Kempe. *Iteration Head: A Mechanistic Study of Chain-of-Thought*, 2024. The codebase is in the folder `projects/cot`.
+- Vivien Cabannes, Charles Arnal, Wassim Bouaziz, Alice Yang, Francois Charton, Julia Kempe. *Iteration Head: A Mechanistic Study of Chain-of-Thought*, in NeurIPS 2024. The codebase is in the folder `projects/cot`.
 
 - Vivien Cabannes, Elvis Dohmatob, Alberto Bietti. *Scaling Laws for Associative Memories*, in International Conference on Learning Representations (ICLR), 2024. The codebase is in the folder `projects/scaling_laws`.
 
 - Vivien Cabannes, Berfin Simsek, Alberto Bietti. *Learning Associative Memories with Gradient Descent* in International Conference on Machine Learning (ICML), 2024. The codebase is in the folder `projects/gradient_descent`.
 
-- Ambroise Odonnat, Wassim Bouaziz, Vivien Cabannes. *A Visual Case Study of the Training Dynamics in Neural Networks*, In preparation. Codebase in `project/visualization`.
+- Ambroise Odonnat, Wassim Bouaziz, Vivien Cabannes. *Easing Optimization Paths: A Circuit Perspective*, in ICASSP 2025. The codebase is in `project/visualization`.
 
-- Charles Arnal, Clement Berenfeld, Simon Rosenberg, Vivien Cabannes. *Scaling Laws with Hidden Structure*, In preparation. Codebase in `projects/factorization`.
+- Ambroise Odonnat, Wassim Bouaziz, Vivien Cabannes. *A Visual Case Study of the Training Dynamics in Neural Networks*, In preparation. The codebase is in `project/visualization`.
+
+- Charles Arnal, Clement Berenfeld, Simon Rosenberg, Vivien Cabannes. *Scaling Laws with Hidden Structure*, In preparation. The codebase is in `projects/factorization`.
 
 ## Organization
 The main reusable code is in the `src` folder.
