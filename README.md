@@ -22,11 +22,11 @@ Please refer to the `example` folder, and in particular the `bash_script.sh` to 
 
 - Vivien Cabannes, Berfin Simsek, Alberto Bietti. *Learning Associative Memories with Gradient Descent* in International Conference on Machine Learning (ICML), 2024. The codebase is in the folder `projects/gradient_descent`.
 
+- Ambroise Odonnat, Wassim Bouaziz, Vivien Cabannes. *Easing Optimization Paths: A Circuit Perspective*, in ICASSP 2025. Codebase in `project/visualization`.
+
 - Ambroise Odonnat, Wassim Bouaziz, Vivien Cabannes. *A Visual Case Study of the Training Dynamics in Neural Networks*, In preparation. Codebase in `project/visualization`.
 
 - Charles Arnal, Clement Berenfeld, Simon Rosenberg, Vivien Cabannes. *Scaling Laws with Hidden Structure*, In preparation. Codebase in `projects/factorization`.
-
-- Ambroise Odonnat, Wassim Bouaziz, Vivien Cabannes. *Easing Optimization Paths: A Circuit Perspective*, in ICASSP 2025. Codebase in `project/visualization`.
 
 ## Organization
 The main reusable code is in the `src` folder.
