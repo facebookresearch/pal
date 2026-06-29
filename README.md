@@ -24,7 +24,7 @@ Please refer to the `example` folder, and in particular the `bash_script.sh` to 
 
 - Ambroise Odonnat, Wassim Bouaziz, Vivien Cabannes. *Easing Optimization Paths: A Circuit Perspective*, in ICASSP 2025. The codebase is in `project/visualization`.
 
-- Ambroise Odonnat, Wassim Bouaziz, Vivien Cabannes. *A Visual Case Study of the Training Dynamics in Neural Networks*, In preparation. The codebase is in `project/visualization`.
+- Ambroise Odonnat, Wassim Bouaziz, Vivien Cabannes. *A Mechanistic Study of Transformers Training Dynamics* in ICML Mechanistic Interpretability workshop (2026). The codebase is in `project/visualization`.
 
 - Charles Arnal, Clement Berenfeld, Simon Rosenberg, Vivien Cabannes. *Scaling Laws with Hidden Structure*, In preparation. The codebase is in `projects/factorization`.
 
